@@ -14,9 +14,10 @@ class KubefaceBackend(ParallelBackendBase):
         return self.client.available_concurrency()
 
     def apply_async(self, func, *args, **kwargs):
+        print(func, *args, **kwargs)
+        
         callback = kwargs.pop('callback', None)
-        kwargs['pure'] = False
-        future = self.executor.submit(func, *args, **kwargs)
+        future = self.client.submit(func, *args, **kwargs)
         self.futures.add(future)
 
         @gen.coroutine
@@ -38,5 +39,5 @@ class KubefaceBackend(ParallelBackendBase):
 
 
 
-def configure():
+def register():
     register_parallel_backend('kubeface', KubefaceBackend)

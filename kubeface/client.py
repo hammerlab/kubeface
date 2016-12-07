@@ -39,6 +39,8 @@ class Client(object):
         self.available_parallelism = available_parallelism
 
     def launch_container(self, task_name):
+        if run_locally:
+            
 
 
 

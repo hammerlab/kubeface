@@ -25,11 +25,17 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
     ],
+    entry_points={
+        'console_scripts': [
+            'kubeface-copy = kubeface.commands.copy:run',
+        ]
+    },
     install_requires=[
         "joblib",
         "dill",
         "six",
         "cloudpickle",
+        "google-api-python-client",
         "nose>=1.3.1",
     ]
 )
