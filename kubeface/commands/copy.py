@@ -10,8 +10,8 @@ from .. import storage
 
 parser = argparse.ArgumentParser(description=__doc__)
 
-parser.add_argument("source", required=True)
-parser.add_argument("destination", required=True)
+parser.add_argument("source")
+parser.add_argument("destination")
 
 parser.add_argument(
     "--no-error",
@@ -38,7 +38,10 @@ def run(argv=sys.argv[1:]):
     logging.info("Reading: %s" % args.source)
     input_handle = storage.get(args.source)
 
-    logging.info("Writing: %s" % args.destination)
+    if args.destination == "-":
+        print(input_handle.read())
+    else:
+        logging.info("Writing: %s" % args.destination)
     storage.put(args.destination, input_handle)
 
     logging.info("Completed.")

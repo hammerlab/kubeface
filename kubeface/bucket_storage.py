@@ -1,5 +1,5 @@
 import logging
-from six import StringIO
+from six import BytesIO
 
 from googleapiclient import discovery
 from googleapiclient import http
@@ -29,14 +29,16 @@ SERVICE = create_service()
 def split_bucket_and_name(url):
     if not url.startswith("gs://"):
         raise ValueError("Not a gs:// url: %s" % url)
-    return url[len("gs://"):].split("/", 2)
+    return url[len("gs://"):].split("/", 1)
 
 
 def put(name, input_handle, readers=[], owners=[]):
+    (bucket_name, file_name) = split_bucket_and_name(name)
+
     # This is the request body as specified:
     # http://g.co/cloud/storage/docs/json_api/v1/objects/insert#request
     body = {
-        'name': name,
+        'name': file_name,
     }
 
     # If specified, create the access control objects and add them to the
@@ -57,8 +59,6 @@ def put(name, input_handle, readers=[], owners=[]):
             'email': o
         })
 
-    (bucket_name, file_name) = split_bucket_and_name(name)
-
     # Now insert them into the specified bucket as a media insertion.
     req = SERVICE.objects().insert(
         bucket=bucket_name,
@@ -77,10 +77,11 @@ def get(name, output_handle=None):
     (bucket_name, file_name) = split_bucket_and_name(name)
 
     if output_handle is None:
-        output_handle = StringIO()
+        output_handle = BytesIO()
 
     # Use get_media instead of get to get the actual contents of the object
     req = SERVICE.objects().get_media(bucket=bucket_name, object=file_name)
+    print(req)
 
     downloader = http.MediaIoBaseDownload(output_handle, req)
 
@@ -88,7 +89,7 @@ def get(name, output_handle=None):
     while done is False:
         (status, done) = downloader.next_chunk()
         logging.debug("Download {}%.".format(int(status.progress() * 100)))
-
+    output_handle.seek(0)
     return output_handle
 
 

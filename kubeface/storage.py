@@ -12,8 +12,8 @@ def put(name, input_handle, readers=[], owners=[]):
         return bucket_storage.put(name, input_handle, readers, owners)
 
     # Local file
-    with open(name, 'w') as fd:
-        input_handle.write(fd)
+    with open(name, 'wb') as fd:
+        fd.write(input_handle.read())
 
 
 def get(name, output_handle=None):
