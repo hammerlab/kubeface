@@ -8,7 +8,8 @@ from oauth2client.client import GoogleCredentials
 
 # Some of this is copied from:
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/crud_object.py
-
+# and:
+# https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/list_objects.py
 
 def create_service():
     # Get the application default credentials. When running locally, these are
@@ -30,6 +31,31 @@ def split_bucket_and_name(url):
     if not url.startswith("gs://"):
         raise ValueError("Not a gs:// url: %s" % url)
     return url[len("gs://"):].split("/", 1)
+
+
+def list_contents(prefix):
+    splitted = split_bucket_and_name(prefix)
+    if len(splitted) == 1:
+        (bucket_name, file_name_prefix) = (splitted[0], "")
+    else:
+        (bucket_name, file_name_prefix) = splitted
+
+    # Create a request to objects.list to retrieve a list of objects.
+    fields_to_return = \
+        'nextPageToken,items(name)'
+    req = SERVICE.objects().list(
+        bucket=bucket_name,
+        prefix=file_name_prefix,
+        fields=fields_to_return)
+
+    all_objects = []
+    # If you have too many items to list in one request, list_next() will
+    # automatically handle paging with the pageToken.
+    while req:
+        resp = req.execute()
+        all_objects.extend(resp.get('items', []))
+        req = SERVICE.objects().list_next(req, resp)
+    return [item['name'] for item in all_objects]
 
 
 def put(name, input_handle, readers=[], owners=[]):

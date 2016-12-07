@@ -5,10 +5,10 @@ import getpass
 import socket
 import time
 from datetime import datetime
-from six import StringIO
+from six import BytesIO
 
 from .serialization import loads, dumps
-from .bucket_client import BucketClient
+from . import storage
 
 
 def make_job_name():
@@ -28,7 +28,8 @@ class Client(object):
             image_pull_policy="Always",
             cluster=None,
             python_path='/usr/bin/env python',
-            available_parallelism=10,
+            max_simultaneous_tasks=10,
+            storage_prefix="gs://kubeface",
             run_locally=False):
 
         self.bucket_client = BucketClient(bucket)
@@ -36,7 +37,12 @@ class Client(object):
         self.image_pull_policy = image_pull_policy
         self.cluster = cluster
         self.python_path = python_path
-        self.available_parallelism = available_parallelism
+        self.max_simultaneous_tasks = max_simultaneous_tasks
+        self.storage_prefix = storage_prefix
+        self.run_locally = run_locally
+
+    def storage_path(self, filename):
+        return self.storage_prefix + "/" + filename
 
     def launch_container(self, task_name):
         if run_locally:
@@ -45,7 +51,8 @@ class Client(object):
 
 
 
-    def submit_job(self, tasks):
+
+    def run_job(self, tasks):
         job_name = make_job_name()
         for task in tasks:
             serialized = dumps(task)
@@ -53,7 +60,9 @@ class Client(object):
                 job_name,
                 hashlib.sha1(serialized).hexdigest())
             logging.debug("Uploading: %s" % task_name)
-            self.bucket_client.upload(task_name, StringIO(serialized))
+            storage.put(
+                storage_path(task_name),
+                BytesIO(serialized))
 
 
 

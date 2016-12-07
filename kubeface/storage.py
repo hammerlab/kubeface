@@ -1,10 +1,18 @@
 import os
-
+import glob
 from . import bucket_storage
 
 
 def is_google_storage_bucket(name):
     return name.startswith("gs://")
+
+
+def list_contents(prefix):
+    if is_google_storage_bucket(prefix):
+        return bucket_storage.list_contents(prefix)
+
+    else:
+        return glob.glob(prefix + "*")
 
 
 def put(name, input_handle, readers=[], owners=[]):

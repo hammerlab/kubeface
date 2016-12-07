@@ -34,11 +34,16 @@ def test_url_parse():
 def test_put_and_get_to_bucket(bucket):
     data = "ABCDe" * 1000
     data_handle = BytesIO(data.encode("UTF-8"))
-    name = "gs://%s/kubeface-test-%s.txt" % (
-        bucket, str(time.time()).replace(".", ""))
+    file_name = "kubeface-test-%s.txt" % (
+        str(time.time()).replace(".", ""))
+    name = "gs://%s/%s" % (bucket, file_name)
     storage.put(name, data_handle)
+    testing.assert_equal(storage.list_contents(name), [file_name])
+    testing.assert_(
+        file_name in storage.list_contents("gs://%s/kubeface-test-" % bucket))
+
     result_handle = storage.get(name)
     testing.assert_equal(result_handle.read().decode("UTF-8"), data)
     storage.delete(name)
-
-
+    testing.assert_(
+        file_name not in storage.list_contents("gs://%s/" % bucket))
