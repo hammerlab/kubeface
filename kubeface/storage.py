@@ -10,9 +10,9 @@ def is_google_storage_bucket(name):
 def list_contents(prefix):
     if is_google_storage_bucket(prefix):
         return bucket_storage.list_contents(prefix)
-
     else:
-        return glob.glob(prefix + "*")
+        globbed = glob.glob(prefix + "*")
+        return [os.path.basename(x) for x in globbed]
 
 
 def put(name, input_handle, readers=[], owners=[]):
@@ -30,9 +30,9 @@ def get(name, output_handle=None):
 
     # Local file
     if output_handle is None:
-        return open(name)
+        return open(name, "rb")
 
-    with open(name) as fd:
+    with open(name, "rb") as fd:
         output_handle.write(fd.read())
 
     return output_handle
