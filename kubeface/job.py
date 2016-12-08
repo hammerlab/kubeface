@@ -1,9 +1,9 @@
 import logging
 import time
+import tempfile
+from contextlib import closing
 
-from six import BytesIO
-
-from .serialization import load, dumps
+from .serialization import load, dump
 from . import storage, naming
 
 
@@ -32,13 +32,18 @@ class Job(object):
         except StopIteration:
             return False
 
-        serialized = dumps(task)
         task_name = naming.make_task_name(self.name, len(self.submitted_tasks))
         task_input = self.storage_path(naming.task_input_name(task_name))
         task_output = self.storage_path(naming.task_result_name(task_name))
 
-        logging.debug("Uploading: %s for task %s" % (task_input, task_name))
-        storage.put(task_input, BytesIO(serialized))
+        with tempfile.TemporaryFile(prefix="kubeface-job-task-upload-") as fd:
+            dump(task, fd)
+            logging.info("Uploading: %s [%0.3fmb] for task %s" % (
+                task_input,
+                fd.tell(),
+                task_name))
+            fd.seek(0)
+            storage.put(task_input, fd)
         self.backend.submit_task(task_input, task_output)
         self.submitted_tasks.append(task_name)
         return True
@@ -91,7 +96,7 @@ class Job(object):
             raise RuntimeError("Not all tasks have completed")
         for task_name in self.submitted_tasks:
             result_file = self.storage_path(naming.task_result_name(task_name))
-            handle = storage.get(result_file)
-            value = load(handle)
+            with closing(storage.get(result_file)) as handle:
+                value = load(handle)
             storage.delete(result_file)
             yield value
