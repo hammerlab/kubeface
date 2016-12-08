@@ -9,16 +9,32 @@ from .backend import Backend
 
 
 class KubernetesBackend(Backend):
+
+    @staticmethod
+    def add_args(parser):
+        parser.add_argument("--kubernetes-image")
+        parser.add_argument(
+            "--kubernetes-image-pull-policy",
+            default="Always")
+        parser.add_argument("--kubernetes-cluster")
+
+    @staticmethod
+    def from_args(args):
+        if not args.image:
+            raise ValueError("--kubernetes-image is required")
+        return KubernetesBackend(
+            args.image,
+            args.image_pull_policy,
+            args.cluster)
+
     def __init__(
             self,
             image,
             image_pull_policy="Always",
-            cluster=None,
-            python_path='/usr/bin/env python'):
+            cluster=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.cluster = cluster
-        self.python_path = python_path
 
     def submit_task(self, task_input, task_output):
         raise NotImplemented

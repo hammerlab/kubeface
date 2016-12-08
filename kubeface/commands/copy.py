@@ -7,6 +7,7 @@ import argparse
 import logging
 
 from .. import storage
+from ..common import configure_logging
 
 parser = argparse.ArgumentParser(description=__doc__)
 
@@ -34,6 +35,7 @@ parser.add_argument(
 
 def run(argv=sys.argv[1:]):
     args = parser.parse_args(argv)
+    configure_logging(args)
 
     logging.info("Reading: %s" % args.source)
     input_handle = storage.get(args.source)

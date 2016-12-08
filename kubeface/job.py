@@ -1,22 +1,10 @@
 import logging
-import hashlib
 import time
-import socket
-import datetime
-import getpass
+
 from six import BytesIO
 
-from .serialization import loads, dumps
-from . import storage
-
-
-def make_job_name():
-    job_name = "%s-%s-%s" % (
-        socket.gethostbyname(),
-        getpass.getuser(),
-        datetime.strftime(datetime.now(), "%Y-%m-%d-%H:%M:%S"),
-        hashlib.sha1(str(time.time()).encode()).hexdigest()[:8])
-    return job_name
+from .serialization import load, dumps
+from . import storage, naming
 
 
 class Job(object):
@@ -32,8 +20,7 @@ class Job(object):
         self.storage_prefix = storage_prefix
         self.tasks_iter = tasks_iter
 
-        self.name = make_job_name()
-        self.task_name_prefix = "task-%s-input" % self.name
+        self.name = naming.make_job_name()
         self.submitted_tasks = []
 
     def storage_path(self, filename):
@@ -46,25 +33,25 @@ class Job(object):
             return False
 
         serialized = dumps(task)
-        task_hash = hashlib.sha1(serialized).hexdigest()
-        task_input = "task-%s-input-%s" % (self.name, task_hash)
-        task_output = "task-%s-output-%s" % (self.name, task_hash)
-        logging.debug("Uploading: %s" % task_input)
-        storage.put(
-            self.storage_path(task_input),
-            BytesIO(serialized))
-        self.backend.submit_task(
-            task_input,
-            task_output)
+        task_name = naming.make_task_name(self.name, len(self.submitted_tasks))
+        task_input = self.storage_path(naming.task_input_name(task_name))
+        task_output = self.storage_path(naming.task_result_name(task_name))
+
+        logging.debug("Uploading: %s for task %s" % (task_input, task_name))
+        storage.put(task_input, BytesIO(serialized))
+        self.backend.submit_task(task_input, task_output)
         self.submitted_tasks.append(task_name)
         return True
 
     def get_completed_tasks(self):
-        completed_tasks = storage.list_contents(
-            self.storage_path(self.task_name_prefix))
+        completed_task_result_names = storage.list_contents(
+            self.storage_path(naming.task_result_prefix(self.name)))
+        completed_tasks = set(
+            naming.task_name_from_result_name(x)
+            for x in completed_task_result_names)
 
         assert all(x in self.submitted_tasks for x in completed_tasks)
-        return set(completed_tasks)
+        return completed_tasks
 
     def get_running_tasks(self):
         completed_tasks = self.get_completed_tasks()
@@ -87,7 +74,7 @@ class Job(object):
                 time.sleep(poll_seconds)
                 continue
 
-            logging.info("Submitting %d tasks" % len(tasks_to_submit))
+            logging.info("Submitting %d tasks" % tasks_to_submit)
             if not all(self.submit_one_task() for _ in range(tasks_to_submit)):
                 # We've submitted all our tasks.
                 while True:
@@ -103,8 +90,8 @@ class Job(object):
         if self.get_running_tasks():
             raise RuntimeError("Not all tasks have completed")
         for task_name in self.submitted_tasks:
-            data_file = self.storage_path(task_name)
-            handle = storage.get(data_file)
-            value = loads(handle)
-            storage.delete(data_file)
+            result_file = self.storage_path(naming.task_result_name(task_name))
+            handle = storage.get(result_file)
+            value = load(handle)
+            storage.delete(result_file)
             yield value

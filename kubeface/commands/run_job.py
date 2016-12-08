@@ -91,4 +91,4 @@ def run(argv=sys.argv[1:]):
     for (value, return_value) in results:
         writer.writerow([str(value), str(return_value)])
 
-    logging.info("Done.")
+    logging.info("Wrote: %s" % (args.out_csv if args.out_csv else "(stdout)"))

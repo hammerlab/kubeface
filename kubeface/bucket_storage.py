@@ -107,8 +107,6 @@ def get(name, output_handle=None):
 
     # Use get_media instead of get to get the actual contents of the object
     req = SERVICE.objects().get_media(bucket=bucket_name, object=file_name)
-    print(req)
-
     downloader = http.MediaIoBaseDownload(output_handle, req)
 
     done = False

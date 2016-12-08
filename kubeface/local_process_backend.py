@@ -5,14 +5,31 @@ from .backend import Backend
 
 
 class LocalProcessBackend(Backend):
-    def __init__(self, python_path='/usr/bin/env python'):
-        self.python_path = python_path
+    @staticmethod
+    def add_args(parser):
+        pass
 
-    def submit_task(self, task_input, task_output):
+    @staticmethod
+    def from_args(args):
+        return LocalProcessBackend()
+
+    def __init__(self):
+        pass
+
+    def run_task_args(self, task_input, task_output, delete_input):
         args = [
             "_kubeface-run-task",
             task_input,
             task_output
         ]
+        if delete_input:
+            args.append("--delete-input")
+        return args
+
+    def submit_task(self, task_input, task_output, delete_input=True):
+        args = self.run_task_args(
+            task_input,
+            task_output,
+            delete_input=delete_input)
         logging.debug("Running: %s" % str(args))
         return subprocess.Popen(args)
