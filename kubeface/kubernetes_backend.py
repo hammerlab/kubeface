@@ -4,9 +4,26 @@ import getpass
 import socket
 
 from . import serialization
-from .backend import Backend, Future
-from .common import check_call
+from .backend import Backend
+#from .common import check_call
 
+
+class KubernetesBackend(Backend):
+    def __init__(
+            self,
+            image,
+            image_pull_policy="Always",
+            cluster=None,
+            python_path='/usr/bin/env python'):
+        self.image = image
+        self.image_pull_policy = image_pull_policy
+        self.cluster = cluster
+        self.python_path = python_path
+
+    def submit_task(self, task_input, task_output):
+        raise NotImplemented
+
+'''
 
 class TimeoutError(object):
     pass
@@ -47,42 +64,6 @@ def make_run_name():
         datetime.strftime(datetime.now(), "%Y-%m-%d-%H:%M:%S"),
         hashlib.sha1(str(time.time()).encode()).hexdigest()[:8])
     return run_name
-
-
-class Client(object):
-    def __init__(
-            self,
-            image,
-            bucket,
-            image_pull_policy="Always",
-            cluster=None,
-            python_path='/usr/bin/env python',
-            available_parallelism=10,
-            run_locally=False):
-
-        self.bucket_client = BucketClient(bucket)
-        self.image = image
-        self.image_pull_policy = image_pull_policy
-        self.cluster = cluster
-        self.python_path = python_path
-        self.available_parallelism = available_parallelism
-
-    def launch_container(self, task_name):
-        if run_locally:
-            
-
-
-
-
-    def submit_job(self, tasks):
-        job_name = make_job_name()
-        for task in tasks:
-            serialized = dumps(task)
-            task_name = "task-%s-%s" % (
-                job_name,
-                hashlib.sha1(serialized).hexdigest())
-            logging.debug("Uploading: %s" % task_name)
-            self.bucket_client.upload(task_name, StringIO(serialized))
 
 
 
@@ -242,4 +223,4 @@ class KubernetesBackend(Backend):
         command.extend(invocation)
         logging.info("Running: %s")
         subprocess.check_call(command)
-        
+'''

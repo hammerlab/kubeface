@@ -1,12 +1,3 @@
-import subprocess
-import logging
-
-
 class Backend(object):
-    def schedule(self):
-        raise NotImplementedError
-
-
-class Future(object):
-    def get(self, timeout=None):
+    def submit_task(self, task_input, task_output):
         raise NotImplementedError
