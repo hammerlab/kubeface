@@ -1,5 +1,5 @@
 import logging
-from six import BytesIO
+import tempfile
 
 from googleapiclient import discovery
 from googleapiclient import http
@@ -10,6 +10,7 @@ from oauth2client.client import GoogleCredentials
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/crud_object.py
 # and:
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/list_objects.py
+
 
 def create_service():
     # Get the application default credentials. When running locally, these are
@@ -103,7 +104,9 @@ def get(name, output_handle=None):
     (bucket_name, file_name) = split_bucket_and_name(name)
 
     if output_handle is None:
-        output_handle = BytesIO()
+        output_handle = tempfile.TemporaryFile(
+            prefix="kubeface-bucket-storage-",
+            suffix=".data")
 
     # Use get_media instead of get to get the actual contents of the object
     req = SERVICE.objects().get_media(bucket=bucket_name, object=file_name)
