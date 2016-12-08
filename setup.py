@@ -10,7 +10,7 @@ setup(
     version=version,
     author="Tim O'Donnell",
     author_email="timodonnell@gmail.com",
-    packages=["kubeface"],
+    packages=["kubeface", "kubeface.commands"],
     url="https://github.com/hammerlab/kubeface",
     license="Apache License",
     description="Python parallel for loops on kubernetes",
