@@ -33,10 +33,8 @@ setup(
         ]
     },
     install_requires=[
-        "joblib",
         "dill",
         "six",
-        "cloudpickle",
         "google-api-python-client",
         "nose>=1.3.1",
     ]

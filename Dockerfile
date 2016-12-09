@@ -53,7 +53,7 @@ RUN virtualenv venv-py3 --python=python3 && \
         scikit-learn \
         seaborn
 
+RUN echo "source venv-py3/bin/activate" >> .bashrc
 COPY . ./kubeface
 RUN venv-py3/bin/pip install ./kubeface
-CMD bash -c 'source venv-py3/bin/activate ; bash'
 
