@@ -40,11 +40,11 @@ class Job(object):
             dump(task, fd)
             logging.info("Uploading: %s [%0.3fmb] for task %s" % (
                 task_input,
-                fd.tell(),
+                fd.tell() / 1024.0**2,
                 task_name))
             fd.seek(0)
             storage.put(task_input, fd)
-        self.backend.submit_task(task_input, task_output)
+        self.backend.submit_task(task_name, task_input, task_output)
         self.submitted_tasks.append(task_name)
         return True
 

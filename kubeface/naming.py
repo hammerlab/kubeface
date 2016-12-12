@@ -44,3 +44,11 @@ def task_name_from_input_name(task_input_name):
     if not task_result_name.startswith("input::"):
         raise ValueError("Not an input: %s" % task_input_name)
     return task_result_name[len("input::"):]
+
+
+def job_name_from_task_name(task_name):
+    return task_name.split("::")[-2]
+
+
+def task_num_from_task_name(task_name):
+    return int(task_name.split("::")[-1])

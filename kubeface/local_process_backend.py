@@ -31,10 +31,10 @@ class LocalProcessBackend(Backend):
     def __init__(self, delete_input=True):
         self.delete_input = delete_input
 
-    def submit_task(self, task_input, task_output):
+    def submit_task(self, task_name, task_input, task_output):
         args = run_task_args(
             task_input,
             task_output,
             delete_input=self.delete_input)
-        logging.debug("Running: %s" % str(args))
+        logging.debug("Running task '%s': %s" % (task_name, str(args)))
         return subprocess.Popen(args)

@@ -1,9 +1,11 @@
 import tempfile
 import json
+import logging
 
 from .backend import Backend
 from .local_process_backend import run_task_args
 from .common import check_call
+from . import naming
 
 
 class KubernetesBackend(Backend):
@@ -33,14 +35,14 @@ class KubernetesBackend(Backend):
 
     @staticmethod
     def from_args(args):
-        if not args.image:
+        if not args.kubernetes_image:
             raise ValueError("--kubernetes-image is required")
         return KubernetesBackend(
-            image=args.image,
-            image_pull_policy=args.image_pull_policy,
-            cluster=args.cluster,
+            image=args.kubernetes_image,
+            image_pull_policy=args.kubernetes_image_pull_policy,
+            cluster=args.kubernetes_cluster,
             task_resources_cpu=args.kubernetes_task_resources_cpu,
-            task_resources_memory=args.kubernetes_task_resources_memory_mb,
+            task_resources_memory_mb=args.kubernetes_task_resources_memory_mb,
             delete_input=args.kubernetes_delete_input)
 
     def __init__(
@@ -64,6 +66,7 @@ class KubernetesBackend(Backend):
             task_input,
             task_output)
         with tempfile.NamedTemporaryFile(
+                mode="w+",
                 prefix="kubeface-kubernetes-%s" % task_name,
                 suffix=".json") as fd:
             json.dump(specification, fd, indent=4)
@@ -72,21 +75,38 @@ class KubernetesBackend(Backend):
         return task_name
 
     def task_specification(self, task_name, task_input, task_output):
+        job_name = naming.job_name_from_task_name(task_name)
+        task_num = naming.task_num_from_task_name(task_name)
+        logging.info(
+            "Generating kubernetes specification for task %d in job %s" % (
+                task_num, job_name))
+
+        sanitized_job_name = (
+            job_name
+            .replace(".", "-")
+            .replace(":", "-")
+            .replace("_", "-")).lower()
+        sanitized_task_name = (
+            task_name
+            .replace(".", "-")
+            .replace(":", "-")
+            .replace("_", "-")).lower()
         result = {
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
-                "name": task_name,
+                "name": sanitized_task_name,
             },
             "spec": {
+                "activeDeadlineSeconds": 100,
                 "template": {
                     "metadata": {
-                        "name": task_name,
+                        "name": str(task_num),
                     },
                     "spec": {
                         "containers": [
                             {
-                                "name": task_name,
+                                "name": str(task_num),
                                 "image": self.image,
                                 "imagePullPolicy": self.image_pull_policy,
                                 "command": run_task_args(

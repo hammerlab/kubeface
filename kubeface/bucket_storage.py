@@ -1,10 +1,13 @@
 import logging
 import tempfile
+import time
 
 from googleapiclient import discovery
 from googleapiclient import http
 
 from oauth2client.client import GoogleCredentials
+
+from googleapiclient.errors import HttpError
 
 # Some of this is copied from:
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/crud_object.py
@@ -27,6 +30,35 @@ def create_service():
 
 SERVICE = create_service()
 
+RETRIES_BEFORE_FAILURE = 12
+FIRST_RETRY_SLEEP = 2.0
+
+
+def robustify(function):
+    def robust_function(*args, **kwargs):
+        error_num = 0
+        while True:
+            try:
+                return function(*args, **kwargs)
+            except HttpError as e:
+                error_num += 1
+                logging.warning(
+                    "Google API error calling %s: '%s'. "
+                    "This call has failed %d times. Will retry up to "
+                    "%d times." % (
+                        str(function),
+                        str(e),
+                        error_num,
+                        RETRIES_BEFORE_FAILURE))
+
+                if error_num > RETRIES_BEFORE_FAILURE:
+                    raise
+
+                sleep_time = FIRST_RETRY_SLEEP**error_num
+                logging.warn("Sleeping for %0.2f seconds." % sleep_time)
+                time.sleep(sleep_time)
+    return robust_function
+
 
 def split_bucket_and_name(url):
     if not url.startswith("gs://"):
@@ -34,6 +66,7 @@ def split_bucket_and_name(url):
     return url[len("gs://"):].split("/", 1)
 
 
+@robustify
 def list_contents(prefix):
     splitted = split_bucket_and_name(prefix)
     if len(splitted) == 1:
@@ -59,6 +92,7 @@ def list_contents(prefix):
     return [item['name'] for item in all_objects]
 
 
+@robustify
 def put(name, input_handle, readers=[], owners=[]):
     (bucket_name, file_name) = split_bucket_and_name(name)
 
@@ -100,6 +134,7 @@ def put(name, input_handle, readers=[], owners=[]):
     return resp
 
 
+@robustify
 def get(name, output_handle=None):
     (bucket_name, file_name) = split_bucket_and_name(name)
 
@@ -120,6 +155,7 @@ def get(name, output_handle=None):
     return output_handle
 
 
+@robustify
 def delete(name):
     (bucket_name, file_name) = split_bucket_and_name(name)
     req = SERVICE.objects().delete(bucket=bucket_name, object=file_name)
