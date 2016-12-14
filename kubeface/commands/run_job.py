@@ -5,13 +5,11 @@ Run a task. Used internally, not meant to be called by a user.
 import sys
 import argparse
 import logging
-import tempfile
 import subprocess
 import numpy
 import csv
 from functools import partial
 
-from .. import storage, serialization
 from ..client import Client
 from ..common import configure_logging
 

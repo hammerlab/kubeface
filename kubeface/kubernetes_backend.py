@@ -122,7 +122,7 @@ class KubernetesBackend(Backend):
                                 },
                             },
                         ],
-                        "restartPolicy": "OnFailure",
+                        "restartPolicy": "Never",
                     },
                 },
             },
