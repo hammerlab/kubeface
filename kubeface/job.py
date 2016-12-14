@@ -3,6 +3,8 @@ import time
 import tempfile
 from contextlib import closing
 
+import bitmath
+
 from .serialization import load, dump
 from . import storage, naming
 
@@ -38,9 +40,13 @@ class Job(object):
 
         with tempfile.TemporaryFile(prefix="kubeface-job-task-upload-") as fd:
             dump(task, fd)
-            logging.info("Uploading: %s [%0.3fmb] for task %s" % (
+            size_string = (
+                bitmath.Byte(bytes=fd.tell())
+                .best_prefix()
+                .format("{value:.2f} {unit}"))
+            logging.info("Uploading: %s [%s] for task %s" % (
                 task_input,
-                fd.tell() / 1024.0**2,
+                size_string,
                 task_name))
             fd.seek(0)
             storage.put(task_input, fd)

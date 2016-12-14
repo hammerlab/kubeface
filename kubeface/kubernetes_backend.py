@@ -28,10 +28,15 @@ class KubernetesBackend(Backend):
             metavar="X",
             default=1000.0)
         parser.add_argument(
+            "--kubernetes-active-deadline-seconds",
+            type=int,
+            metavar="N",
+            default=100)
+        parser.add_argument(
             "--kubernetes-keep-input",
             dest="kubernetes_delete_input",
             action="store_false",
-            default="true")
+            default=True)
 
     @staticmethod
     def from_args(args):
@@ -43,6 +48,7 @@ class KubernetesBackend(Backend):
             cluster=args.kubernetes_cluster,
             task_resources_cpu=args.kubernetes_task_resources_cpu,
             task_resources_memory_mb=args.kubernetes_task_resources_memory_mb,
+            active_deadline_seconds=args.kubernetes_active_deadline_seconds,
             delete_input=args.kubernetes_delete_input)
 
     def __init__(
@@ -52,12 +58,14 @@ class KubernetesBackend(Backend):
             cluster=None,
             task_resources_cpu=1,
             task_resources_memory_mb=1000,
+            active_deadline_seconds=100,
             delete_input=True):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.cluster = cluster
         self.task_resources_cpu = task_resources_cpu
         self.task_resources_memory_mb = task_resources_memory_mb
+        self.active_deadline_seconds = active_deadline_seconds
         self.delete_input = delete_input
 
     def submit_task(self, task_name, task_input, task_output):
@@ -81,16 +89,7 @@ class KubernetesBackend(Backend):
             "Generating kubernetes specification for task %d in job %s" % (
                 task_num, job_name))
 
-        sanitized_job_name = (
-            job_name
-            .replace(".", "-")
-            .replace(":", "-")
-            .replace("_", "-")).lower()
-        sanitized_task_name = (
-            task_name
-            .replace(".", "-")
-            .replace(":", "-")
-            .replace("_", "-")).lower()
+        sanitized_task_name = naming.sanitize(task_name)
         result = {
             "apiVersion": "batch/v1",
             "kind": "Job",
@@ -98,7 +97,7 @@ class KubernetesBackend(Backend):
                 "name": sanitized_task_name,
             },
             "spec": {
-                "activeDeadlineSeconds": 100,
+                "activeDeadlineSeconds": self.active_deadline_seconds,
                 "template": {
                     "metadata": {
                         "name": str(task_num),

@@ -1,6 +1,8 @@
 import time
 import socket
 import logging
+import types
+import traceback
 
 
 class Task(object):
@@ -19,8 +21,14 @@ class Task(object):
         }
         try:
             result["return_value"] = self.function(*self.args, **self.kwargs)
+            if isinstance(result["return_value"], types.GeneratorType):
+                result["return_value"] = list(result["return_value"])
         except Exception as e:
-            logging.warn("Task execution raised exception: %s" % e)
+            traceback_string = traceback.format_exc()
+            logging.warn("Task execution raised exception: %s. %s" % (
+                e, traceback_string))
             result["exception"] = e
+            result["exception_traceback_string"] = traceback_string
+            result["return_value"] = None
         result["end_time"] = time.time()
         return result

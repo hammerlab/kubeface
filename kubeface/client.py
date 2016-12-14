@@ -3,6 +3,10 @@ from .task import Task
 from . import backends
 
 
+def run_multiple(function, values):
+    return [function(v) for v in values]
+
+
 class Client(object):
     @staticmethod
     def add_args(parser):
@@ -48,11 +52,30 @@ class Client(object):
             max_simultaneous_tasks=self.max_simultaneous_tasks,
             storage_prefix=self.storage_prefix)
 
-    def map(self, function, iterable):
-        tasks = (Task(function, (i,)) for i in iterable)
+    def map(self, function, iterable, items_per_task=1, batched=False):
+        def grouped():
+            iterator = iter(iterable)
+            while True:
+                items = []
+                try:
+                    while len(items) < items_per_task:
+                        items.append(next(iterator))
+                except StopIteration:
+                    pass
+                if items:
+                    yield items
+                else:
+                    break
+
+        if batched:
+            tasks = (Task(function, [values]) for values in grouped())
+        else:
+            tasks = (
+                Task(run_multiple, (function, values)) for values in grouped())
         job = self.submit(tasks)
         job.wait(poll_seconds=self.poll_seconds)
         for result in job.results():
             if result['exception']:
                 raise result['exception']
-            yield result['return_value']
+            for result_item in result['return_value']:
+                yield result_item

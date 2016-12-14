@@ -52,3 +52,11 @@ def job_name_from_task_name(task_name):
 
 def task_num_from_task_name(task_name):
     return int(task_name.split("::")[-1])
+
+
+def sanitize(name):
+    return (
+        name
+        .replace(".", "-")
+        .replace(":", "-")
+        .replace("_", "-").lower())

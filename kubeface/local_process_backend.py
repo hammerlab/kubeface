@@ -22,11 +22,12 @@ class LocalProcessBackend(Backend):
             "--local-process-keep-input",
             dest="local_process_delete_input",
             action="store_false",
-            default="true")
+            default=True)
 
     @staticmethod
     def from_args(args):
-        return LocalProcessBackend(delete_input=args.local_process_keep_input)
+        return LocalProcessBackend(
+            delete_input=args.local_process_delete_input)
 
     def __init__(self, delete_input=True):
         self.delete_input = delete_input

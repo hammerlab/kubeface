@@ -35,6 +35,7 @@ setup(
     install_requires=[
         "dill",
         "six",
+        "bitmath",
         "google-api-python-client",
         "nose>=1.3.1",
     ]
