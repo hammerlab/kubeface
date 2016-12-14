@@ -37,6 +37,7 @@ setup(
         "six",
         "bitmath",
         "google-api-python-client",
+        "mock",
         "nose>=1.3.1",
     ]
 )
