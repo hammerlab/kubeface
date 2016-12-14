@@ -79,7 +79,12 @@ class KubernetesBackend(Backend):
                 suffix=".json") as fd:
             json.dump(specification, fd, indent=4)
             fd.flush()
-            check_call(["kubectl", "create", "-f", fd.name])
+            try:
+                check_call(["kubectl", "create", "-f", fd.name])
+            except:
+                logging.error("Error calling kutectl on spec: \n%s" % (
+                    json.dumps(specification, indent=4)))
+                raise
         return task_name
 
     def task_specification(self, task_name, task_input, task_output):
@@ -90,6 +95,42 @@ class KubernetesBackend(Backend):
                 task_num, job_name))
 
         sanitized_task_name = naming.sanitize(task_name)
+        sanitized_job_name = naming.sanitize(job_name)
+
+        result = {
+            "kind": "Pod",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": sanitized_task_name,
+                "labels": {
+                    "kubeface_job": sanitized_job_name,
+                },
+                "namespace": "",
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": str(task_num),
+                        "image": self.image,
+                        "imagePullPolicy": self.image_pull_policy,
+                        "command": run_task_args(
+                            task_input,
+                            task_output,
+                            delete_input=self.delete_input),
+                        "resources": {
+                            "requests": {
+                                "cpu": self.task_resources_cpu,
+                                "memory": (
+                                    "%sMi" %
+                                    self.task_resources_memory_mb),
+                            },
+                        },
+                    },
+                ],
+                "restartPolicy": "Never",
+            }
+        }
+        '''
         result = {
             "apiVersion": "batch/v1",
             "kind": "Job",
@@ -127,4 +168,5 @@ class KubernetesBackend(Backend):
                 },
             },
         }
+        '''
         return result
