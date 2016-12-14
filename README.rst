@@ -33,6 +33,7 @@ The ``kubeface-run-job`` command runs a job from the shell, which is useful for 
 If you don't already have a kubernetes cluster running, use a command like this to start one:
 
 ::
+
     gcloud config set compute/zone us-east1-c
     gcloud container clusters create kubeface-cluster-$(whoami) \
         --scopes storage-full \

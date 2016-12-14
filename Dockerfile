@@ -27,7 +27,6 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
     useradd --create-home --home-dir /home/user --shell /bin/bash -G sudo user && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
         
-# Set the locale (otherwise dask-distributed complains).
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
@@ -46,11 +45,11 @@ RUN virtualenv venv-py3 --python=python3 && \
         numpy \
         bokeh \
         cherrypy \
-        git+https://github.com/dask/distributed.git \
         jupyter \
         lxml \
         scipy \
         scikit-learn \
+        dill \
         seaborn
 
 ENV PATH /home/user/venv-py3/bin:$PATH

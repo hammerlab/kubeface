@@ -97,7 +97,7 @@ class KubernetesBackend(Backend):
                 "name": sanitized_task_name,
             },
             "spec": {
-                "activeDeadlineSeconds": self.active_deadline_seconds,
+                # "activeDeadlineSeconds": self.active_deadline_seconds,
                 "template": {
                     "metadata": {
                         "name": str(task_num),

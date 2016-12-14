@@ -8,7 +8,8 @@ def run_task_args(task_input, task_output, delete_input):
     args = [
         "_kubeface-run-task",
         task_input,
-        task_output
+        task_output,
+        "--verbose",
     ]
     if delete_input:
         args.append("--delete-input")

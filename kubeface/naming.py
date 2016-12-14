@@ -5,13 +5,13 @@ import hashlib
 import time
 
 
-def hash_value(s, characters=16):
+def hash_value(s, characters=8):
     return hashlib.sha1(str(s).encode()).hexdigest()[:characters]
 
 
 def make_job_name():
     job_name = "%s-%s-%s-%s" % (
-        socket.gethostname(),
+        socket.gethostname()[:8],
         getpass.getuser(),
         datetime.strftime(datetime.now(), "%Y-%m-%d-%H:%M:%S"),
         hash_value(time.time()))
