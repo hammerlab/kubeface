@@ -59,6 +59,7 @@ class KubernetesBackend(Backend):
             task_resources_cpu=1,
             task_resources_memory_mb=1000,
             active_deadline_seconds=100,
+            retries=12,
             delete_input=True):
         self.image = image
         self.image_pull_policy = image_pull_policy
@@ -66,6 +67,7 @@ class KubernetesBackend(Backend):
         self.task_resources_cpu = task_resources_cpu
         self.task_resources_memory_mb = task_resources_memory_mb
         self.active_deadline_seconds = active_deadline_seconds
+        self.retries = retries
         self.delete_input = delete_input
 
     def submit_task(self, task_name, task_input, task_output):
@@ -79,13 +81,21 @@ class KubernetesBackend(Backend):
                 suffix=".json") as fd:
             json.dump(specification, fd, indent=4)
             fd.flush()
-            try:
-                check_call(["kubectl", "create", "-f", fd.name])
-            except:
-                logging.error("Error calling kutectl on spec: \n%s" % (
-                    json.dumps(specification, indent=4)))
-                raise
-        return task_name
+            retry_num = 0
+            while True:
+                try:
+                    check_call(["kubectl", "create", "-f", fd.name])
+                    return task_name
+                except subprocess.CalledProcessError:
+                    logging.warn("Error calling kutectl on spec: \n%s" % (
+                        json.dumps(specification, indent=4)))
+                    retry_num += 1
+                    if retry_num >= self.retries:
+                        raise
+                    sleep_time = 2.0**retry_num
+                    logging.info("Retry %d / %d. Sleeping for %0.1f sec." % (
+                        retry_num, retries, sleep_time))
+                    time.sleep(sleep_time)
 
     def task_specification(self, task_name, task_input, task_output):
         job_name = naming.job_name_from_task_name(task_name)
