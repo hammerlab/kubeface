@@ -17,7 +17,7 @@ class Client(object):
         parser.add_argument(
             "--poll-seconds",
             type=float,
-            default=5.0)
+            default=30.0)
         parser.add_argument(
             "--storage-prefix",
             default="gs://kubeface")
@@ -37,7 +37,7 @@ class Client(object):
             self,
             backend,
             max_simultaneous_tasks=10,
-            poll_seconds=5.0,
+            poll_seconds=30.0,
             storage_prefix="gs://kubeface"):
 
         self.backend = backend
