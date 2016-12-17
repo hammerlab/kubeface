@@ -1,6 +1,8 @@
 import tempfile
 import json
 import logging
+import subprocess
+import time
 
 from .backend import Backend
 from .local_process_backend import run_task_args
@@ -32,11 +34,6 @@ class KubernetesBackend(Backend):
             type=int,
             metavar="N",
             default=100)
-        parser.add_argument(
-            "--kubernetes-keep-input",
-            dest="kubernetes_delete_input",
-            action="store_false",
-            default=True)
 
     @staticmethod
     def from_args(args):
@@ -60,7 +57,7 @@ class KubernetesBackend(Backend):
             task_resources_memory_mb=1000,
             active_deadline_seconds=100,
             retries=12,
-            delete_input=True):
+            cleanup=True):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.cluster = cluster
@@ -68,7 +65,7 @@ class KubernetesBackend(Backend):
         self.task_resources_memory_mb = task_resources_memory_mb
         self.active_deadline_seconds = active_deadline_seconds
         self.retries = retries
-        self.delete_input = delete_input
+        self.cleanup = cleanup
 
     def submit_task(self, task_name, task_input, task_output):
         specification = self.task_specification(
@@ -94,18 +91,18 @@ class KubernetesBackend(Backend):
                         raise
                     sleep_time = 2.0**retry_num
                     logging.info("Retry %d / %d. Sleeping for %0.1f sec." % (
-                        retry_num, retries, sleep_time))
+                        retry_num, self.retries, sleep_time))
                     time.sleep(sleep_time)
 
     def task_specification(self, task_name, task_input, task_output):
-        job_name = naming.job_name_from_task_name(task_name)
+        cache_key = naming.cache_key_from_task_name(task_name)
         task_num = naming.task_num_from_task_name(task_name)
         logging.info(
             "Generating kubernetes specification for task %d in job %s" % (
-                task_num, job_name))
+                task_num, cache_key))
 
         sanitized_task_name = naming.sanitize(task_name)
-        sanitized_job_name = naming.sanitize(job_name)
+        sanitized_cache_key = naming.sanitize(cache_key)
 
         result = {
             "kind": "Pod",
@@ -113,7 +110,7 @@ class KubernetesBackend(Backend):
             "metadata": {
                 "name": sanitized_task_name,
                 "labels": {
-                    "kubeface_job": sanitized_job_name,
+                    "kubeface_job": sanitized_cache_key,
                 },
                 "namespace": "",
             },
@@ -126,7 +123,7 @@ class KubernetesBackend(Backend):
                         "command": run_task_args(
                             task_input,
                             task_output,
-                            delete_input=self.delete_input),
+                            cleanup=self.cleanup),
                         "resources": {
                             "requests": {
                                 "cpu": self.task_resources_cpu,
@@ -140,43 +137,4 @@ class KubernetesBackend(Backend):
                 "restartPolicy": "Never",
             }
         }
-        '''
-        result = {
-            "apiVersion": "batch/v1",
-            "kind": "Job",
-            "metadata": {
-                "name": sanitized_task_name,
-            },
-            "spec": {
-                # "activeDeadlineSeconds": self.active_deadline_seconds,
-                "template": {
-                    "metadata": {
-                        "name": str(task_num),
-                    },
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": str(task_num),
-                                "image": self.image,
-                                "imagePullPolicy": self.image_pull_policy,
-                                "command": run_task_args(
-                                    task_input,
-                                    task_output,
-                                    delete_input=self.delete_input),
-                                "resources": {
-                                    "requests": {
-                                        "cpu": self.task_resources_cpu,
-                                        "memory": (
-                                            "%sMi" %
-                                            self.task_resources_memory_mb),
-                                    },
-                                },
-                            },
-                        ],
-                        "restartPolicy": "Never",
-                    },
-                },
-            },
-        }
-        '''
         return result

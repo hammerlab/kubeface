@@ -9,21 +9,25 @@ def hash_value(s, characters=8):
     return hashlib.sha1(str(s).encode()).hexdigest()[:characters]
 
 
-def make_job_name():
-    job_name = "%s-%s-%s-%s" % (
+def make_cache_key():
+    cache_key = "%s-%s-%s-%s" % (
         socket.gethostname()[:8],
         getpass.getuser(),
         datetime.strftime(datetime.now(), "%Y-%m-%d-%H:%M:%S"),
         hash_value(time.time()))
-    return job_name
+    return cache_key
 
 
-def task_result_prefix(job_name):
-    return "result::" + job_name
+def make_job_name(cache_key):
+    return cache_key + "::" + hash_value(time.time())
 
 
-def make_task_name(job_name, task_num):
-    return "%s::%d" % (job_name, task_num)
+def make_task_name(cache_key, task_num):
+    return "%s::%d" % (cache_key, task_num)
+
+
+def task_result_prefix(cache_key):
+    return "result::" + cache_key
 
 
 def task_input_name(task_name):
@@ -32,6 +36,11 @@ def task_input_name(task_name):
 
 def task_result_name(task_name):
     return "result::" + task_name
+
+
+def status_name(job_name, fmt, is_active):
+    active = "active" if is_active else "done"
+    return "%s::%s::%s.%s" % (active, fmt, job_name, fmt)
 
 
 def task_name_from_result_name(task_result_name):
@@ -46,7 +55,7 @@ def task_name_from_input_name(task_input_name):
     return task_result_name[len("input::"):]
 
 
-def job_name_from_task_name(task_name):
+def cache_key_from_task_name(task_name):
     return task_name.split("::")[-2]
 
 

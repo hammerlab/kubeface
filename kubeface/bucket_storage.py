@@ -14,6 +14,17 @@ from googleapiclient.errors import HttpError
 # and:
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/list_objects.py
 
+RETRIES_BEFORE_FAILURE = 12
+FIRST_RETRY_SLEEP = 2.0
+_SERVICE = None
+
+
+def get_service():
+    global _SERVICE
+    if _SERVICE is None:
+        _SERVICE = create_service()
+    return _SERVICE
+
 
 def create_service():
     # Get the application default credentials. When running locally, these are
@@ -26,12 +37,6 @@ def create_service():
     # You can browse other available api services and versions here:
     #     http://g.co/dev/api-client-library/python/apis/
     return discovery.build('storage', 'v1', credentials=credentials)
-
-
-SERVICE = create_service()
-
-RETRIES_BEFORE_FAILURE = 12
-FIRST_RETRY_SLEEP = 2.0
 
 
 def robustify(function):
@@ -77,9 +82,10 @@ def list_contents(prefix):
     # Create a request to objects.list to retrieve a list of objects.
     fields_to_return = \
         'nextPageToken,items(name)'
-    req = SERVICE.objects().list(
+    req = get_service().objects().list(
         bucket=bucket_name,
         prefix=file_name_prefix,
+        maxResults=100000,
         fields=fields_to_return)
 
     all_objects = []
@@ -88,12 +94,13 @@ def list_contents(prefix):
     while req:
         resp = req.execute()
         all_objects.extend(resp.get('items', []))
-        req = SERVICE.objects().list_next(req, resp)
+        req = get_service().objects().list_next(req, resp)
     return [item['name'] for item in all_objects]
 
 
 @robustify
 def put(name, input_handle, readers=[], owners=[]):
+    input_handle.seek(0)
     (bucket_name, file_name) = split_bucket_and_name(name)
 
     # This is the request body as specified:
@@ -121,7 +128,7 @@ def put(name, input_handle, readers=[], owners=[]):
         })
 
     # Now insert them into the specified bucket as a media insertion.
-    req = SERVICE.objects().insert(
+    req = get_service().objects().insert(
         bucket=bucket_name,
         body=body,
         # You can also just set media_body=filename, but # for the sake of
@@ -144,7 +151,7 @@ def get(name, output_handle=None):
             suffix=".data")
 
     # Use get_media instead of get to get the actual contents of the object
-    req = SERVICE.objects().get_media(bucket=bucket_name, object=file_name)
+    req = get_service().objects().get_media(bucket=bucket_name, object=file_name)
     downloader = http.MediaIoBaseDownload(output_handle, req)
 
     done = False
@@ -158,5 +165,5 @@ def get(name, output_handle=None):
 @robustify
 def delete(name):
     (bucket_name, file_name) = split_bucket_and_name(name)
-    req = SERVICE.objects().delete(bucket=bucket_name, object=file_name)
+    req = get_service().objects().delete(bucket=bucket_name, object=file_name)
     return req.execute()
