@@ -45,8 +45,7 @@ class KubernetesBackend(Backend):
             cluster=args.kubernetes_cluster,
             task_resources_cpu=args.kubernetes_task_resources_cpu,
             task_resources_memory_mb=args.kubernetes_task_resources_memory_mb,
-            active_deadline_seconds=args.kubernetes_active_deadline_seconds,
-            delete_input=args.kubernetes_delete_input)
+            active_deadline_seconds=args.kubernetes_active_deadline_seconds)
 
     def __init__(
             self,
