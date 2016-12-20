@@ -59,34 +59,39 @@ class Job(object):
         return self.storage_prefix + "/" + filename
 
     def submit_one_task(self):
-        try:
-            task = next(self.tasks_iter)
-        except StopIteration:
-            return False
+        stop = False
+        while not stop:
+            try:
+                task = next(self.tasks_iter)
+            except StopIteration:
+                return False
 
-        task_name = naming.make_task_name(
-            self.cache_key, len(self.submitted_tasks))
+            task_name = naming.make_task_name(
+                self.cache_key, len(self.submitted_tasks))
+            task_output = self.storage_path(naming.task_result_name(task_name))
+
+            if task_name in self.completed_tasks:
+                logging.info("Using existing result: %s" % task_output)
+                self.reused_tasks.add(task_name)
+                self.submitted_tasks.append(task_name)
+            else:
+                stop = True
+
         task_input = self.storage_path(naming.task_input_name(task_name))
-        task_output = self.storage_path(naming.task_result_name(task_name))
-
-        if task_name in self.completed_tasks:
-            logging.info("Using existing result: %s" % task_output)
-            self.reused_tasks.add(task_name)
-        else:
-            with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
-                dump(task, fd)
-                size_string = (
-                    bitmath.Byte(bytes=fd.tell())
-                    .best_prefix()
-                    .format("{value:.2f} {unit}"))
-                logging.info("Uploading: %s [%s] for task %s" % (
-                    task_input,
-                    size_string,
-                    task_name))
-                fd.seek(0)
-                storage.put(task_input, fd)
-            self.backend.submit_task(task_name, task_input, task_output)
-            self.status_writer.update(self.status_dict())
+        with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
+            dump(task, fd)
+            size_string = (
+                bitmath.Byte(bytes=fd.tell())
+                .best_prefix()
+                .format("{value:.2f} {unit}"))
+            logging.info("Uploading: %s [%s] for task %s" % (
+                task_input,
+                size_string,
+                task_name))
+            fd.seek(0)
+            storage.put(task_input, fd)
+        self.backend.submit_task(task_name, task_input, task_output)
+        self.status_writer.update(self.status_dict())
         self.submitted_tasks.append(task_name)
         return True
 
