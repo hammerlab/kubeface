@@ -31,7 +31,9 @@ class Job(object):
 
         self.job_name = naming.make_job_name(self.cache_key)
         self.submitted_tasks = []
-        self.reused_tasks = []
+        self.reused_tasks = set()
+        self.completed_tasks = set()
+        self.running_tasks = set()
         self.status_writer = DefaultStatusWriter(storage_prefix, self.job_name)
 
         self.status_writer.print_info()
@@ -46,35 +48,30 @@ class Job(object):
         }
 
     def status_dict(self):
-        completed_tasks = self.get_completed_tasks()
         result = dict(self.static_status_dict)
         result["submitted_tasks"] = list(self.submitted_tasks)
-        result["completed_tasks"] = list(completed_tasks)
-        result["running_tasks"] = list(
-            self.get_running_tasks(completed_tasks))
+        result["completed_tasks"] = list(self.completed_tasks)
+        result["running_tasks"] = list(self.running_tasks)
         result['reused_tasks'] = list(self.reused_tasks)
         return result
 
     def storage_path(self, filename):
         return self.storage_prefix + "/" + filename
 
-    def submit_one_task(self, completed_tasks=None):
+    def submit_one_task(self):
         try:
             task = next(self.tasks_iter)
         except StopIteration:
             return False
-        
-        if completed_tasks is None:
-            completed_tasks = self.get_completed_tasks()
 
         task_name = naming.make_task_name(
             self.cache_key, len(self.submitted_tasks))
         task_input = self.storage_path(naming.task_input_name(task_name))
         task_output = self.storage_path(naming.task_result_name(task_name))
 
-        if task_name in completed_tasks:
+        if task_name in self.completed_tasks:
             logging.info("Using existing result: %s" % task_output)
-            self.reused_tasks.append(task_name)
+            self.reused_tasks.add(task_name)
         else:
             with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
                 dump(task, fd)
@@ -93,18 +90,15 @@ class Job(object):
         self.submitted_tasks.append(task_name)
         return True
 
-    def get_completed_tasks(self):
+    def update(self):
         completed_task_result_names = storage.list_contents(
-            self.storage_path(naming.task_result_prefix(self.cache_key)))
-        completed_tasks = set(
+            self.storage_path(
+                naming.task_result_prefix(self.cache_key, self.running_tasks)))
+        self.completed_tasks.update(
             naming.task_name_from_result_name(x)
             for x in completed_task_result_names)
-        return completed_tasks
-
-    def get_running_tasks(self, completed_tasks=None):
-        if completed_tasks is None:
-            completed_tasks = self.get_completed_tasks()
-        return set(self.submitted_tasks).difference(completed_tasks)
+        self.running_tasks = set(self.submitted_tasks).difference(
+            self.completed_tasks)
 
     def wait(self, poll_seconds=5.0):
         """
@@ -112,31 +106,31 @@ class Job(object):
         """
 
         while True:
-            completed_tasks = self.get_completed_tasks()
-            running_tasks = self.get_running_tasks(completed_tasks)
+            self.update()
             tasks_to_submit = max(
                 0,
                 self.max_simultaneous_tasks -
-                len(running_tasks))
+                len(self.running_tasks))
             if tasks_to_submit == 0:
                 time.sleep(poll_seconds)
                 continue
 
             logging.info("Submitting %d tasks" % tasks_to_submit)
-            if not all(self.submit_one_task(completed_tasks) for _ in range(tasks_to_submit)):
+            if not all(self.submit_one_task() for _ in range(tasks_to_submit)):
                 # We've submitted all our tasks.
                 while True:
+                    self.update()
                     self.status_writer.update(self.status_dict())
-                    running_tasks = self.get_running_tasks()
-                    if not running_tasks:
+                    if not self.running_tasks:
                         return
                     logging.info("Waiting for %d tasks to complete: %s" % (
-                        len(running_tasks),
-                        " ".join(running_tasks)))
+                        len(self.running_tasks),
+                        " ".join(self.running_tasks)))
                     time.sleep(poll_seconds)
 
     def results(self):
-        if self.get_running_tasks():
+        self.update()
+        if self.running_tasks:
             raise RuntimeError("Not all tasks have completed")
         for task_name in self.submitted_tasks:
             result_file = self.storage_path(naming.task_result_name(task_name))

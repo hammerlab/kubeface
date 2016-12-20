@@ -3,6 +3,7 @@ from datetime import datetime
 import getpass
 import hashlib
 import time
+from os.path import commonprefix
 
 
 def hash_value(s, characters=8):
@@ -26,8 +27,15 @@ def make_task_name(cache_key, task_num):
     return "%s::%d" % (cache_key, task_num)
 
 
-def task_result_prefix(cache_key):
-    return "result::" + cache_key
+def task_result_prefix(cache_key, task_names=[]):
+    prefix = "result::" + cache_key
+    if task_names:
+        better_prefix = commonprefix([
+            task_result_name(t) for t in task_names
+        ])
+        assert better_prefix.startswith(prefix)
+        return better_prefix
+    return prefix
 
 
 def task_input_name(task_name):

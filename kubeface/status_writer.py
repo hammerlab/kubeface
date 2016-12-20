@@ -25,10 +25,13 @@ class DefaultStatusWriter(object):
         d["num_completed_tasks"] = len(d["completed_tasks"])
         d["num_submitted_tasks"] = len(d["submitted_tasks"])
         d["num_reused_tasks"] = len(d["reused_tasks"])
-        d["num_tasks"] = d["num_tasks"] if d["num_tasks"] else "unknown"
+        if d["num_tasks"]:
+            d["percent_complete"] = (
+                d["num_completed_tasks"] * 100.0 / d["num_tasks"])
+        else:
+            d["percent_complete"] = "unknown"
+            d["num_tasks"] = "unknown"
         d["status_time"] = time.asctime()
-        d["percent_complete"] = (
-            d["num_completed_tasks"] * 100.0 / d["num_tasks"])
 
         return """
         <html>
