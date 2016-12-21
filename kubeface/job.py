@@ -59,8 +59,8 @@ class Job(object):
         return self.storage_prefix + "/" + filename
 
     def submit_one_task(self):
-        stop = False
-        while not stop:
+        task_name = None
+        while task_name is None:
             try:
                 task = next(self.tasks_iter)
             except StopIteration:
@@ -74,8 +74,7 @@ class Job(object):
                 logging.info("Using existing result: %s" % task_output)
                 self.reused_tasks.add(task_name)
                 self.submitted_tasks.append(task_name)
-            else:
-                stop = True
+                task_name = None
 
         task_input = self.storage_path(naming.task_input_name(task_name))
         with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
