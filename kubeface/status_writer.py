@@ -58,7 +58,7 @@ class DefaultStatusWriter(object):
         <tr><td>Completed tasks</td><td>{num_completed_tasks}</td></tr>
         <tr><td>Submitted tasks</td><td>{num_submitted_tasks}</td></tr>
         <tr><td>Reused tasks</td><td>{num_reused_tasks}</td></tr>
-        <tr><td>Total tasks</td><td>{num_running_tasks}</td></tr>
+        <tr><td>Total tasks</td><td>{num_tasks}</td></tr>
         </table>
         </body>
         </html>
