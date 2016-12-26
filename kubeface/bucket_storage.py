@@ -45,7 +45,7 @@ def robustify(function):
         while True:
             try:
                 return function(*args, **kwargs)
-            except (HttpError, BrokenPipeError, ConnectionResetError) as e:
+            except (HttpError, TimeoutError, BrokenPipeError, ConnectionResetError) as e:
                 error_num += 1
                 logging.warning(
                     "Google API error calling %s: '%s'. "
