@@ -76,6 +76,7 @@ class KubernetesBackend(Backend):
                 prefix="kubeface-kubernetes-%s" % task_name,
                 suffix=".json") as fd:
             json.dump(specification, fd, indent=4)
+            logging.debug(json.dumps(specification, indent=4))
             fd.flush()
             retry_num = 0
             while True:

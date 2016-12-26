@@ -2,11 +2,15 @@ import logging
 import subprocess
 
 from .backend import Backend
+from . import worker_payload
 
 
-def run_task_args(task_input, task_output, cleanup):
-    args = [
-        "_kubeface-run-task",
+def run_task_args(task_input, task_output, cleanup, use_payload=True):
+    if use_payload:
+        invocation = worker_payload.payload_python_args()
+    else:
+        invocation = ["_kubeface-run-task"]
+    args = invocation + [
         task_input,
         task_output,
         "--verbose",

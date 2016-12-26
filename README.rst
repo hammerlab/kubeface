@@ -61,7 +61,7 @@ Now launch a command:
         --generator-expression 'range(10)' \
         --max-simultaneous-tasks 10 \
         --backend kubernetes \
-        --kubernetes-image hammerlab/kubeface-misc \
+        --kubernetes-image continuumio/miniconda \
         --kubernetes-image-pull-policy Always \
         --kubernetes-task-resources-cpu 1 \
         --kubernetes-task-resources-memory-mb 500 \
