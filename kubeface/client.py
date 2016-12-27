@@ -12,20 +12,25 @@ def run_multiple(function, values):
 class Client(object):
     @staticmethod
     def add_args(parser):
-        parser.add_argument(
+        group = parser.add_argument_group("kubeface client")
+        group.add_argument(
             "--max-simultaneous-tasks",
             type=int,
             default=10)
-        parser.add_argument(
+        group.add_argument(
             "--poll-seconds",
             type=float,
             default=30.0)
-        parser.add_argument(
+        group.add_argument(
             "--storage-prefix",
             default="gs://kubeface")
-        parser.add_argument(
-            "--cache-key")
-        parser.add_argument(
+        group.add_argument(
+            "--cache-key-prefix")
+        group.add_argument(
+            "--fail-on-worker-exception",
+            choices=('sooner', 'later'),
+            default=["sooner"])
+        group.add_argument(
             "--no-cleanup",
             action="store_false",
             default=True,
@@ -41,7 +46,7 @@ class Client(object):
             max_simultaneous_tasks=args.max_simultaneous_tasks,
             poll_seconds=args.poll_seconds,
             storage_prefix=args.storage_prefix,
-            cache_key=args.cache_key,
+            cache_key_prefix=args.cache_key_prefix,
             cleanup=args.cleanup)
 
     def __init__(
@@ -50,14 +55,14 @@ class Client(object):
             max_simultaneous_tasks=10,
             poll_seconds=30.0,
             storage_prefix="gs://kubeface",
-            cache_key=None,
+            cache_key_prefix=None,
             cleanup=True):
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.poll_seconds = poll_seconds
         self.storage_prefix = storage_prefix
-        self.cache_key = cache_key
+        self.cache_key_prefix = cache_key_prefix
         self.cleanup = cleanup
 
         self.num_submitted = 0
@@ -65,12 +70,9 @@ class Client(object):
         self.backend.cleanup = cleanup
 
     def next_cache_key(self):
-        if not self.cache_key:
+        if not self.cache_key_prefix:
             return None
-        if self.num_submitted == 0:
-            return self.cache_key
-        else:
-            return "%s%d" % (self.cache_key, self.num_submitted)
+        return "%s-%03d" % (self.cache_key_prefix, self.num_submitted)
 
     def submit(self, tasks, num_tasks=None):
         if num_tasks is None:

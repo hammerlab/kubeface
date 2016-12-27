@@ -8,8 +8,8 @@ def check_call(*args, **kwargs):
     subprocess.check_call(*args, **kwargs)
 
 
-def configure_logging(args=None):
-    if args is not None and args.verbose:
+def configure_logging(args=None, verbose=False):
+    if verbose or (args is not None and args.verbose):
         level = logging.DEBUG
     else:
         level = logging.INFO

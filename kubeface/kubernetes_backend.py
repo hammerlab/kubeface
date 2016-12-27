@@ -5,7 +5,7 @@ import subprocess
 import time
 
 from .backend import Backend
-from .local_process_backend import run_task_args
+from .worker_configuration import WorkerConfiguration
 from .common import check_call
 from . import naming
 
@@ -14,57 +14,54 @@ class KubernetesBackend(Backend):
 
     @staticmethod
     def add_args(parser):
-        parser.add_argument("--kubernetes-image")
+        default = KubernetesBackend(worker_configuration=None)
         parser.add_argument(
-            "--kubernetes-image-pull-policy",
-            default="Always")
-        parser.add_argument("--kubernetes-cluster")
+            "--kubernetes-cluster",
+            default=default.kubernetes_cluster,
+            help="Cluster. Default: %(default)s")
         parser.add_argument(
             "--kubernetes-task-resources-cpu",
+            default=default.task_resources_cpu,
             type=int,
-            metavar="N",
-            default=1)
+            help="CPUs per task. Default: %(default)s")
         parser.add_argument(
             "--kubernetes-task-resources-memory-mb",
+            default=default.task_resources_memory_mb,
             type=float,
-            metavar="X",
-            default=1000.0)
+            help="Memory (mb) per task. Default: %(default)s")
         parser.add_argument(
-            "--kubernetes-active-deadline-seconds",
+            "--kubernetes-retries",
+            default=default.retries,
             type=int,
-            metavar="N",
-            default=100)
+            help="Max retries for kubernetes commands. Default: %(default)s")
+        parser.add_argument(
+            "--kubernetes-image-pull-policy",
+            default=default.image_pull_policy,
+            choices=("Always", "IfNotPresent", "Never"),
+            help="Default: %(default)s")
 
     @staticmethod
     def from_args(args):
-        if not args.kubernetes_image:
-            raise ValueError("--kubernetes-image is required")
         return KubernetesBackend(
-            image=args.kubernetes_image,
-            image_pull_policy=args.kubernetes_image_pull_policy,
-            cluster=args.kubernetes_cluster,
-            task_resources_cpu=args.kubernetes_task_resources_cpu,
-            task_resources_memory_mb=args.kubernetes_task_resources_memory_mb,
-            active_deadline_seconds=args.kubernetes_active_deadline_seconds)
+            worker_configuration=WorkerConfiguration.from_args(args),
+            **dict(
+                (key, value.replace("kubernetes_", ""))
+                for (key, value) in args._get_kwargs()))
 
     def __init__(
             self,
-            image,
-            image_pull_policy="Always",
+            worker_configuration,
             cluster=None,
             task_resources_cpu=1,
-            task_resources_memory_mb=1000,
-            active_deadline_seconds=100,
+            task_resources_memory_mb=1000.0,
             retries=12,
-            cleanup=True):
-        self.image = image
-        self.image_pull_policy = image_pull_policy
+            image_pull_policy='Always'):
+        self.worker_configuration = worker_configuration
         self.cluster = cluster
         self.task_resources_cpu = task_resources_cpu
         self.task_resources_memory_mb = task_resources_memory_mb
-        self.active_deadline_seconds = active_deadline_seconds
         self.retries = retries
-        self.cleanup = cleanup
+        self.image_pull_policy = image_pull_policy
 
     def submit_task(self, task_name, task_input, task_output):
         specification = self.task_specification(

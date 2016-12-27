@@ -3,6 +3,8 @@ import shutil
 import tempfile
 import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
 
 def with_bucket(function):
     bucket = os.environ.get("KUBEFACE_BUCKET")
@@ -10,7 +12,7 @@ def with_bucket(function):
         def test_function():
             tempdir = None
             try:
-                tempdir = tempfile.mkdtemp()
+                tempdir = tempfile.mkdtemp(dir='/tmp')
                 function(tempdir)
             finally:
                 if tempdir:
@@ -20,7 +22,7 @@ def with_bucket(function):
         def test_function():
             tempdir = None
             try:
-                tempdir = tempfile.mkdtemp()
+                tempdir = tempfile.mkdtemp(dir='/tmp')
                 function(tempdir)
             finally:
                 if tempdir:
