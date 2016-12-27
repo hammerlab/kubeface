@@ -25,9 +25,6 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
     ],
-    package_data={
-        'kubeface': ['kubeface'],
-    },
     entry_points={
         'console_scripts': [
             'kubeface-copy = kubeface.commands.copy:run',
@@ -40,7 +37,5 @@ setup(
         "six",
         "bitmath",
         "google-api-python-client",
-        "mock",
-        "nose>=1.3.1",
     ]
 )
