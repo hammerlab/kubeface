@@ -34,7 +34,7 @@ class WorkerConfiguration(object):
 
     def __init__(
             self,
-            image='continuumio/anaconda',
+            image='continuumio/anaconda3',
             path_prefix='',
             pip='pip',
             pip_packages=[],
