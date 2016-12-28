@@ -2,7 +2,7 @@ import math
 
 from .job import Job
 from .task import Task
-from . import backends
+from . import backends, worker_configuration
 
 
 def run_multiple(function, values):
@@ -36,6 +36,7 @@ class Client(object):
             default=True,
             dest="cleanup")
 
+        worker_configuration.WorkerConfiguration.add_args(parser)
         backends.add_args(parser)
 
     @staticmethod

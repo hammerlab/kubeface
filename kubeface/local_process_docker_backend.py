@@ -10,6 +10,7 @@ from .worker_configuration import (
 )
 
 DOCKER_MOUNT = "/kubeface-data"
+KUBEFACE_MOUNT = "/kubeface-package"
 
 
 class LocalProcessDockerBackend(Backend):
@@ -34,13 +35,18 @@ class LocalProcessDockerBackend(Backend):
 
     def submit_task(self, task_name, task_input, task_output):
         if not task_input.startswith("gs://"):
-            dirname = os.path.dirname(task_input)
-            assert os.path.dirname(task_output) == dirname
+            data_dir = os.path.dirname(task_input)
+            assert os.path.dirname(task_output) == data_dir
 
             task_input = os.path.join(
                 DOCKER_MOUNT, os.path.basename(task_input))
             task_output = os.path.join(
                 DOCKER_MOUNT, os.path.basename(task_output))
+
+        kubeface_package_dir = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                ".."))
 
         worker_command = self.worker_configuration.command(
             task_input,
@@ -48,7 +54,9 @@ class LocalProcessDockerBackend(Backend):
         command = shlex.split(self.docker_command) + [
             "run",
             "-v",
-            "%s:%s" % (dirname, DOCKER_MOUNT),
+            "%s:%s" % (data_dir, DOCKER_MOUNT),
+            "-v",
+            "%s:%s" % (kubeface_package_dir, KUBEFACE_MOUNT),
             self.worker_configuration.image,
             "sh",
             "-c",

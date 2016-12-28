@@ -45,7 +45,11 @@ def robustify(function):
         while True:
             try:
                 return function(*args, **kwargs)
-            except (HttpError, TimeoutError, BrokenPipeError, ConnectionResetError) as e:
+            except (
+                    HttpError,
+                    TimeoutError,
+                    BrokenPipeError,
+                    ConnectionResetError) as e:
                 error_num += 1
                 logging.warning(
                     "Google API error calling %s: '%s'. "
@@ -99,7 +103,12 @@ def list_contents(prefix):
 
 
 @robustify
-def put(name, input_handle, readers=[], owners=[]):
+def put(
+        name,
+        input_handle,
+        readers=[],
+        owners=[],
+        mime_type='application/octet-stream'):
     input_handle.seek(0)
     (bucket_name, file_name) = split_bucket_and_name(name)
 
@@ -134,8 +143,7 @@ def put(name, input_handle, readers=[], owners=[]):
         # You can also just set media_body=filename, but # for the sake of
         # demonstration, pass in the more generic file handle, which could
         # very well be a StringIO or similar.
-        media_body=http.MediaIoBaseUpload(
-            input_handle, 'application/octet-stream'))
+        media_body=http.MediaIoBaseUpload(input_handle, mime_type))
     resp = req.execute()
 
     return resp
@@ -151,7 +159,9 @@ def get(name, output_handle=None):
             suffix=".data")
 
     # Use get_media instead of get to get the actual contents of the object
-    req = get_service().objects().get_media(bucket=bucket_name, object=file_name)
+    req = get_service().objects().get_media(
+        bucket=bucket_name,
+        object=file_name)
     downloader = http.MediaIoBaseDownload(output_handle, req)
 
     done = False

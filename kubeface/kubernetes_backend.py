@@ -17,7 +17,7 @@ class KubernetesBackend(Backend):
         default = KubernetesBackend(worker_configuration=None)
         parser.add_argument(
             "--kubernetes-cluster",
-            default=default.kubernetes_cluster,
+            default=default.cluster,
             help="Cluster. Default: %(default)s")
         parser.add_argument(
             "--kubernetes-task-resources-cpu",
@@ -38,15 +38,17 @@ class KubernetesBackend(Backend):
             "--kubernetes-image-pull-policy",
             default=default.image_pull_policy,
             choices=("Always", "IfNotPresent", "Never"),
-            help="Default: %(default)s")
+            help="Image pull policy. Default: %(default)s")
 
     @staticmethod
     def from_args(args):
+        arg_prefix = "kubernetes_"
         return KubernetesBackend(
             worker_configuration=WorkerConfiguration.from_args(args),
             **dict(
-                (key, value.replace("kubernetes_", ""))
-                for (key, value) in args._get_kwargs()))
+                (key[len(arg_prefix):], value)
+                for (key, value) in args._get_kwargs()
+                if key.startswith(arg_prefix)))
 
     def __init__(
             self,
@@ -115,12 +117,15 @@ class KubernetesBackend(Backend):
                 "containers": [
                     {
                         "name": str(task_num),
-                        "image": self.image,
+                        "image": self.worker_configuration.image,
                         "imagePullPolicy": self.image_pull_policy,
-                        "command": run_task_args(
-                            task_input,
-                            task_output,
-                            cleanup=self.cleanup),
+                        "command": [
+                            "sh",
+                            "-c",
+                            self.worker_configuration.command(
+                                task_input,
+                                task_output),
+                        ],
                         "resources": {
                             "requests": {
                                 "cpu": self.task_resources_cpu,

@@ -26,11 +26,8 @@ def test_local_process_backend(bucket):
 
 @with_bucket
 def test_local_process_docker_backend(bucket):
-    branch = "master"
-    branch = "experiments"
     worker_config = worker_configuration.WorkerConfiguration(
-        kubeface_install_command=(
-        "{pip} install https://github.com/hammerlab/kubeface/archive/%s.zip" % branch))
+        kubeface_install_command="{pip} install /kubeface-package")
     backend = local_process_docker_backend.LocalProcessDockerBackend(
         worker_configuration=worker_config)
     c = client.Client(

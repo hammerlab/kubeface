@@ -27,10 +27,12 @@ class WorkerConfiguration(object):
 
     @staticmethod
     def from_args(args):
+        arg_prefix = "worker_"
         return WorkerConfiguration(
             **dict(
-                (key, value.replace("worker_", ""))
-                for (key, value) in args._get_kwargs()))
+                (key[len(arg_prefix):], value)
+                for (key, value) in args._get_kwargs()
+                if key.startswith(arg_prefix)))
 
     def __init__(
             self,
