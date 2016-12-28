@@ -97,9 +97,7 @@ class WorkerConfiguration(object):
                 task_output,
                 "--verbose",
             ] + extra_task_args))
-        print(pieces)
         result = " && ".join(pieces)
-        print(result)
         return result
 
 
