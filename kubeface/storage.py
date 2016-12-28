@@ -15,9 +15,10 @@ def list_contents(prefix):
         return [os.path.basename(x) for x in globbed]
 
 
-def put(name, input_handle, readers=[], owners=[]):
+def put(name, input_handle, readers=[], owners=[], **kwargs):
     if is_google_storage_bucket(name):
-        return bucket_storage.put(name, input_handle, readers, owners)
+        return bucket_storage.put(
+            name, input_handle, readers, owners, **kwargs)
 
     # Local file
     with open(name, 'wb') as fd:
@@ -43,3 +44,9 @@ def delete(name):
         return bucket_storage.delete(name)
 
     os.unlink(name)
+
+
+def access_info(name):
+    if is_google_storage_bucket(name):
+        return bucket_storage.access_info(name)
+    return name

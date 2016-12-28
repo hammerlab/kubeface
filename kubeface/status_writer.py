@@ -16,8 +16,8 @@ class DefaultStatusWriter(object):
 
     def print_info(self):
         print("Job status available at:")
-        print("\t%s" % self.json_path)
-        print("\t%s" % self.html_path)
+        print("\t%s" % storage.access_info(self.json_path))
+        print("\t%s" % storage.access_info(self.html_path))
 
     def make_html(self, status_dict):
         d = dict(status_dict)
@@ -65,6 +65,11 @@ class DefaultStatusWriter(object):
         """.format(**d)
 
     def update(self, status_dict):
-        storage.put(self.json_path, BytesIO(json.dumps(status_dict).encode()))
         storage.put(
-            self.html_path, BytesIO(self.make_html(status_dict).encode()))
+            self.json_path,
+            BytesIO(json.dumps(status_dict).encode()),
+            mime_type="application/json")
+        storage.put(
+            self.html_path,
+            BytesIO(self.make_html(status_dict).encode()),
+            mime_type="text/html")
