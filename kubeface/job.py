@@ -16,17 +16,15 @@ class Job(object):
             tasks_iter,
             max_simultaneous_tasks,
             storage_prefix,
-            cache_key=None,
-            num_tasks=None,
-            cleanup=True):
+            cache_key,
+            num_tasks=None):
 
         self.backend = backend
         self.tasks_iter = tasks_iter
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.storage_prefix = storage_prefix
-        self.cache_key = cache_key if cache_key else naming.make_cache_key()
+        self.cache_key = cache_key
         self.num_tasks = num_tasks
-        self.cleanup = cleanup
 
         self.job_name = naming.make_job_name(self.cache_key)
         self.submitted_tasks = []
@@ -136,6 +134,4 @@ class Job(object):
             result_file = self.storage_path(naming.task_result_name(task_name))
             with closing(storage.get(result_file)) as handle:
                 value = load(handle)
-            if self.cleanup:
-                storage.delete(result_file)
             yield value

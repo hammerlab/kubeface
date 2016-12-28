@@ -1,12 +1,19 @@
 import math
+import logging
+import collections
 
 from .job import Job
 from .task import Task
-from . import backends, worker_configuration
+from . import backends, worker_configuration, naming, storage
 
 
 def run_multiple(function, values):
     return [function(v) for v in values]
+
+
+JobSummary = collections.namedtuple(
+    "JobSummary",
+    "job_name cache_key status_kind status_object")
 
 
 class Client(object):
@@ -31,10 +38,9 @@ class Client(object):
             choices=('sooner', 'later'),
             default=["sooner"])
         group.add_argument(
-            "--no-cleanup",
-            action="store_false",
-            default=True,
-            dest="cleanup")
+            "--never-cleanup",
+            action="store_true",
+            default=False)
 
         worker_configuration.WorkerConfiguration.add_args(parser)
         backends.add_args(parser)
@@ -48,7 +54,7 @@ class Client(object):
             poll_seconds=args.poll_seconds,
             storage_prefix=args.storage_prefix,
             cache_key_prefix=args.cache_key_prefix,
-            cleanup=args.cleanup)
+            never_cleanup=args.never_cleanup)
 
     def __init__(
             self,
@@ -57,23 +63,23 @@ class Client(object):
             poll_seconds=30.0,
             storage_prefix="gs://kubeface",
             cache_key_prefix=None,
-            cleanup=True):
+            never_cleanup=False):
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.poll_seconds = poll_seconds
         self.storage_prefix = storage_prefix
-        self.cache_key_prefix = cache_key_prefix
-        self.cleanup = cleanup
+        self.cache_key_prefix = (
+            cache_key_prefix if cache_key_prefix
+            else naming.make_cache_key_prefix())
+        self.never_cleanup = never_cleanup
 
-        self.num_submitted = 0
-
-        self.backend.cleanup = cleanup
+        self.submitted_jobs = []
 
     def next_cache_key(self):
-        if not self.cache_key_prefix:
-            return None
-        return "%s-%03d" % (self.cache_key_prefix, self.num_submitted)
+        return "%s-%03d" % (
+            self.cache_key_prefix,
+            len(self.submitted_jobs))
 
     def submit(self, tasks, num_tasks=None):
         if num_tasks is None:
@@ -81,7 +87,7 @@ class Client(object):
                 num_tasks = len(tasks)
             except TypeError:
                 pass
-        return Job(
+        job = Job(
             self.backend,
             tasks,
             num_tasks=num_tasks,
@@ -89,6 +95,8 @@ class Client(object):
             max_simultaneous_tasks=self.max_simultaneous_tasks,
             storage_prefix=self.storage_prefix,
             cleanup=self.cleanup)
+        self.submitted_jobs.append(job)
+        return job
 
     def map(
             self,
@@ -131,3 +139,63 @@ class Client(object):
                 raise result['exception']
             for result_item in result['return_value']:
                 yield result_item
+
+    def cleanup_job(self, job_name):
+        cache_key = naming.cache_key_from_job_name(job_name)
+        results = storage.list_contents(
+            self.storage_prefix +
+            "/" +
+            naming.task_result_prefix(cache_key))
+        inputs = storage.list_contents(
+            self.storage_prefix +
+            "/" +
+            naming.task_input_prefix(cache_key))
+        logging.info("Cleaning up cache key '%s': %d results, %d inputs." % (
+            cache_key, len(results), len(inputs)))
+
+        for item in results + inputs:
+            storage.delete(item)
+
+        status_pages = set()
+        for prefix in naming.status_prefixes(job_name):
+            status_pages.update(storage.list_contents(prefix))
+        for source_object in status_pages:
+            parsed = naming.parse_status_name(source_object)
+            assert parsed['is_active']
+            parsed['is_active'] = False
+            dest_object = naming.status_name(**parsed)
+            logging.info("Cleaning up job '%s': renaming %s -> %s" % (
+                job_name,
+                source_object,
+                dest_object))
+            storage.move(
+                self.storage_prefix + "/" + source_object,
+                self.storage_prefix + "/" + dest_object)
+
+    def job_summary(self, job_names=None):
+        prefixes = naming.status_prefixes(job_names=job_names)
+        all_objects = []
+        for prefix in prefixes:
+            all_objects.extend(
+                storage.list_contents(
+                    self.storage_prefix + "/" + prefix))
+        logging.debug("Listed %d status pages from prefixes: %s" % (
+            len(all_objects), " ".join(prefixes)))
+        results = collections.OrderedDict()
+
+        for obj in sorted(all_objects):
+            parsed = naming.parse_status_name(obj)
+            cache_key = naming.cache_key_from_job_name(parsed['job_name'])
+            if cache_key not in results:
+                results[cache_key] = []
+            results[cache_key].append(parsed)
+
+        return results
+
+    def cleanup(self):
+        if self.never_cleanup:
+            logging.warn("Cleanup disabled; skipping.")
+            return
+        for job in self.submitted_jobs:
+            logging.info("Cleaning up for job: %s" % job.job_name)
+            self.cleanup_job(job)

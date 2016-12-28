@@ -28,7 +28,7 @@ To run the tests:
 Shell Example
 ------------------
 
-The ``kubeface-run-job`` command runs a job from the shell, which is useful for testing or simple tasks.  
+The ``kubeface-run`` command runs a job from the shell, which is useful for testing or simple tasks.  
 
 If you don't already have a kubernetes cluster running, use a command like this to start one:
 
@@ -56,7 +56,7 @@ Now launch a command:
 
 ::
 
-    kubeface-run-job \
+    kubeface-run \
         --expression 'value**2' \
         --generator-expression 'range(10)' \
         --max-simultaneous-tasks 10 \
