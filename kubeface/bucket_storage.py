@@ -177,3 +177,13 @@ def delete(name):
     (bucket_name, file_name) = split_bucket_and_name(name)
     req = get_service().objects().delete(bucket=bucket_name, object=file_name)
     return req.execute()
+
+
+def access_info(name):
+    (bucket_name, file_name) = split_bucket_and_name(name)
+    return (
+        "https://storage.cloud.google.com/"
+        "{bucket_name}/{file_name}\t[ {name} ]".format(
+            bucket_name=bucket_name,
+            file_name=file_name,
+            name=name))
