@@ -3,6 +3,9 @@ import logging
 import dill
 import dill.detect
 
+PICKLE_PROTOCOL = 2
+
+
 def check(obj):
     try:
         dill.loads(dill.dumps(obj))
@@ -12,14 +15,15 @@ def check(obj):
                     str(obj), str(e), dill.detect.badobjects(obj, depth=2)))
         raise
 
+
 def dumps(obj):
     check(obj)
-    return dill.dumps(obj)
+    return dill.dumps(obj, protocol=PICKLE_PROTOCOL)
 
 
 def dump(obj, fd):
     check(obj)
-    return dill.dump(obj, fd)
+    return dill.dump(obj, fd, protocol=PICKLE_PROTOCOL)
 
 
 def loads(s):

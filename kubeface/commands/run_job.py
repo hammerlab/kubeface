@@ -1,5 +1,5 @@
 '''
-Run a task. Used internally, not meant to be called by a user.
+Run a job.
 '''
 
 import sys

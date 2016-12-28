@@ -9,7 +9,7 @@ import tempfile
 
 from .. import storage, serialization
 from ..common import configure_logging
-
+    
 parser = argparse.ArgumentParser(description=__doc__)
 
 parser.add_argument("input_path")

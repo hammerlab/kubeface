@@ -3,11 +3,10 @@ import time
 import tempfile
 from contextlib import closing
 
-import bitmath
-
 from .serialization import load, dump
 from . import storage, naming
 from .status_writer import DefaultStatusWriter
+from .common import human_readable_memory_size
 
 
 class Job(object):
@@ -79,10 +78,7 @@ class Job(object):
         task_input = self.storage_path(naming.task_input_name(task_name))
         with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
             dump(task, fd)
-            size_string = (
-                bitmath.Byte(bytes=fd.tell())
-                .best_prefix()
-                .format("{value:.2f} {unit}"))
+            size_string = human_readable_memory_size(fd.tell())
             logging.info("Uploading: %s [%s] for task %s" % (
                 task_input,
                 size_string,

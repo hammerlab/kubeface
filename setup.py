@@ -33,10 +33,10 @@ setup(
         ]
     },
     install_requires=[
-        "dill",
+        "dill>=0.2.5",
         "six",
-        "bitmath",
-        "google-api-python-client",
+        "oauth2client==4.0.0",
+        "google-api-python-client==1.5.5",
         "mock",
         "nose>=1.3.1",
     ]
