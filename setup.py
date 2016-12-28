@@ -35,7 +35,7 @@ setup(
     install_requires=[
         "dill>=0.2.5",
         "six",
-        "oauth2client==3.0.0",
+        "oauth2client==4.0.0",
         "google-api-python-client==1.5.5",
         "mock",
         "nose>=1.3.1",
