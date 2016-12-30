@@ -93,8 +93,7 @@ class Client(object):
             num_tasks=num_tasks,
             cache_key=self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
-            storage_prefix=self.storage_prefix,
-            cleanup=self.cleanup)
+            storage_prefix=self.storage_prefix)
         self.submitted_jobs.append(job)
         return job
 
@@ -133,12 +132,36 @@ class Client(object):
             tasks = (
                 Task(run_multiple, (function, values)) for values in grouped())
         job = self.submit(tasks, num_tasks=num_tasks)
-        job.wait(poll_seconds=self.poll_seconds)
-        for result in job.results():
-            if result['exception']:
-                raise result['exception']
-            for result_item in result['return_value']:
-                yield result_item
+        try:
+            job.wait(poll_seconds=self.poll_seconds)
+            for result in job.results():
+                if result['exception']:
+                    raise result['exception']
+                for result_item in result['return_value']:
+                    yield result_item
+        finally:
+            self.mark_jobs_done(job_names=job.job_name)
+
+    def mark_jobs_done(self, job_names=None):
+        status_pages = set()
+        status_prefixes = naming.status_prefixes(job_names=job_names)
+        for prefix in status_prefixes:
+            status_pages.update(storage.list_contents(
+                self.storage_prefix + "/" + prefix))
+        for source_object in status_pages:
+            parsed = naming.parse_status_name(source_object)
+            if parsed['status'] == 'active':
+                parsed['status'] = 'done'
+                dest_object = naming.status_name(**parsed)
+                logging.info("Marking job '%s' done: renaming %s -> %s" % (
+                    parsed['job_name'],
+                    source_object,
+                    dest_object))
+                storage.move(
+                    self.storage_prefix + "/" + source_object,
+                    self.storage_prefix + "/" + dest_object)
+            else:
+                logging.info("Already marked done: %s" % source_object)
 
     def cleanup_job(self, job_name):
         cache_key = naming.cache_key_from_job_name(job_name)
@@ -154,26 +177,14 @@ class Client(object):
             cache_key, len(results), len(inputs)))
 
         for item in results + inputs:
-            storage.delete(item)
+            storage.delete(self.storage_prefix + "/" + item)
 
-        status_pages = set()
-        for prefix in naming.status_prefixes(job_name):
-            status_pages.update(storage.list_contents(prefix))
-        for source_object in status_pages:
-            parsed = naming.parse_status_name(source_object)
-            assert parsed['is_active']
-            parsed['is_active'] = False
-            dest_object = naming.status_name(**parsed)
-            logging.info("Cleaning up job '%s': renaming %s -> %s" % (
-                job_name,
-                source_object,
-                dest_object))
-            storage.move(
-                self.storage_prefix + "/" + source_object,
-                self.storage_prefix + "/" + dest_object)
+        self.mark_jobs_done(job_names=[job_name])
 
-    def job_summary(self, job_names=None):
-        prefixes = naming.status_prefixes(job_names=job_names)
+    def job_summary(self, job_names=None, include_done=False):
+        prefixes = naming.status_prefixes(
+            job_names=job_names,
+            statuses=(["active"] + (["done"] if include_done else [])))
         all_objects = []
         for prefix in prefixes:
             all_objects.extend(
@@ -198,4 +209,4 @@ class Client(object):
             return
         for job in self.submitted_jobs:
             logging.info("Cleaning up for job: %s" % job.job_name)
-            self.cleanup_job(job)
+            self.cleanup_job(job.job_name)

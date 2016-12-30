@@ -104,13 +104,18 @@ def list_contents(prefix):
 
 @robustify
 def move(source, dest):
+    # From https://cloud.google.com/storage/docs/json_api/v1/objects/rewrite
     (bucket_name, source_object) = split_bucket_and_name(source)
     (bucket_name2, dest_object) = split_bucket_and_name(dest)
     service = get_service()
-    import pdb ; pdb.set_trace()
 
-
-
+    request = service.objects().rewrite(
+        sourceBucket=bucket_name,
+        source_object=source_object,
+        destinationBucket=bucket_name,
+        destinationObject=dest_object,
+        body={})
+    request.execute()
 
 
 @robustify

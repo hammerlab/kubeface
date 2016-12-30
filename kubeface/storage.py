@@ -51,7 +51,7 @@ def move(source, dest):
         assert is_google_storage_bucket(dest)
         return bucket_storage.move(source, dest)
     assert not is_google_storage_bucket(dest)
-    os.move(source, dest)
+    os.rename(source, dest)
 
 
 def access_info(name):

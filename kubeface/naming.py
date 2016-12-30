@@ -10,6 +10,11 @@ STATUS_FORMATS = [
     'json',
 ]
 
+STATUSES = [
+    'active',
+    'done',
+]
+
 
 def hash_value(s, characters=8):
     return hashlib.sha1(str(s).encode()).hexdigest()[:characters]
@@ -55,22 +60,22 @@ def task_result_name(task_name):
     return "result::" + task_name
 
 
-def status_name(job_name, fmt, is_active):
-    assert fmt in STATUS_FORMATS
-    active = "active" if is_active else "done"
-    return "%s::%s::%s.%s" % (active, fmt, job_name, fmt)
+def status_name(job_name, fmt, status):
+    assert fmt in STATUS_FORMATS, "Invalid format: %s" % fmt
+    assert status in STATUSES, "Invalid status: %s" % status
+    return "%s::%s::%s.%s" % (status, fmt, job_name, fmt)
 
 
 def parse_status_name(status_name_string):
-    (active, fmt, rest) = status_name_string.split("::", 2)
-    assert active in ("active", "done")
-    is_active = active == "active"
+    (status, fmt, rest) = status_name_string.split("::", 2)
+    assert status in STATUSES
+    assert fmt in STATUS_FORMATS
     (job_name, fmt2) = rest.rsplit(".", 1)
     assert fmt == fmt2
     result = {
         'job_name': job_name,
         'fmt': fmt,
-        'is_active': is_active,
+        'status': status,
     }
     assert status_name(**result) == status_name_string
     return result
@@ -79,31 +84,25 @@ def parse_status_name(status_name_string):
 def status_prefixes(
         job_names=None,
         formats=STATUS_FORMATS,
-        is_actives=[True, False]):
-    is_active_map = {
-        True: "active",
-        False: "done",
-    }
+        statuses=STATUSES):
     result = []
     if job_names is not None:
         # Only some jobs.
         for job in job_names:
-            for is_active in is_actives:
+            for status in statuses:
                 for fmt in formats:
-                    result.append("%s::%s::%s" % (
-                        is_active_map[is_active], fmt, job))
+                    result.append("%s::%s::%s" % (status, fmt, job))
     else:
         # All jobs.
         if set(formats) == set(STATUS_FORMATS):
             # All formats, all jobs.
-            for is_active in is_actives:
-                result.append("%s::" % is_active_map[is_active])
+            for status in statuses:
+                result.append("%s::" % status)
         else:
             # Only some formats, all jobs.
-            for is_active in is_actives:
+            for status in statuses:
                 for fmt in formats:
-                    result.append("%s::%s::" % (
-                        is_active_map[is_active], fmt))
+                    result.append("%s::%s::" % (status, fmt))
     return result
 
 
