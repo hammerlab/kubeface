@@ -29,3 +29,9 @@ def human_readable_memory_size(num, suffix='B'):
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
+
+
+def truncate(s, max_length):
+    if len(s) < max_length:
+        return s
+    return s[:max_length] + "..."

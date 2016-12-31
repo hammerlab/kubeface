@@ -27,8 +27,17 @@ def exercise_client(c, low=1, high=10):
         2.0 / numpy.arange(low, high))
 
 
-def run_job_command(argv):
-    return subprocess.check_output(["kubeface-job"] + argv)
+def run_job_command(bucket, argv):
+    result = subprocess.check_output(
+        ["kubeface-job", "--storage-prefix", bucket] + argv).decode()
+    print(result)
+    return result
+
+
+def find_line_with(needle, haystack, nth=0):
+    result = [x for x in haystack.split("\n") if needle in x][nth]
+    print("Found line: %s" % result)
+    return result
 
 
 @util.with_local_storage
@@ -39,23 +48,13 @@ def test_job_command(bucket):
         "--storage-prefix", bucket,
     ])
 
-    mapper = c.map(lambda x: x + 5, range(10))
-    print(run_job_command([]))
-    print(run_job_command(["--include-done"]))
-
-    '''
-    exercise_client(c, high=2)
-    testing.assert_equal(len(c.job_summary(include_done=False)), 0)
-    testing.assert_equal(len(c.job_summary(include_done=True)), 2)
-
-    mapper = c.map(lambda x: x + 5, range(10))
+    mapper = c.map(lambda x: x + 5, range(10), cache_key='FOOBARBAZ')
     testing.assert_equal(next(mapper), 5)
-    testing.assert_equal(len(c.job_summary(include_done=False)), 1)
-    testing.assert_equal(len(c.job_summary(include_done=True)), 3)
-    testing.assert_equal(list(mapper), numpy.arange(1, 10) + 5)
-    testing.assert_equal(len(c.job_summary(include_done=False)), 0)
-    testing.assert_equal(len(c.job_summary(include_done=True)), 3)
-
-    c.cleanup()
-    testing.assert_equal(len(c.job_summary()), 0)
-    '''
+    assert 'FOOBARBAZ' in run_job_command(bucket, [])
+    assert 'active' in (
+        find_line_with(
+            "FOOBARBAZ",
+            run_job_command(bucket, ["--include-done"]),
+            nth=1))
+    list(mapper)
+    assert 'FOOBARBAZ' not in run_job_command(bucket, [])

@@ -1,6 +1,5 @@
 import math
 import logging
-import collections
 
 from .job import Job
 from .task import Task
@@ -9,11 +8,6 @@ from . import backends, worker_configuration, naming, storage
 
 def run_multiple(function, values):
     return [function(v) for v in values]
-
-
-JobSummary = collections.namedtuple(
-    "JobSummary",
-    "job_name cache_key status_kind status_object")
 
 
 class Client(object):
@@ -81,7 +75,7 @@ class Client(object):
             self.cache_key_prefix,
             len(self.submitted_jobs))
 
-    def submit(self, tasks, num_tasks=None):
+    def submit(self, tasks, num_tasks=None, cache_key=None):
         if num_tasks is None:
             try:
                 num_tasks = len(tasks)
@@ -91,7 +85,7 @@ class Client(object):
             self.backend,
             tasks,
             num_tasks=num_tasks,
-            cache_key=self.next_cache_key(),
+            cache_key=cache_key if cache_key else self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
             storage_prefix=self.storage_prefix)
         self.submitted_jobs.append(job)
@@ -103,7 +97,8 @@ class Client(object):
             iterable,
             items_per_task=1,
             batched=False,
-            num_items=None):
+            num_items=None,
+            cache_key=None):
         def grouped():
             iterator = iter(iterable)
             while True:
@@ -131,11 +126,29 @@ class Client(object):
         else:
             tasks = (
                 Task(run_multiple, (function, values)) for values in grouped())
-        job = self.submit(tasks, num_tasks=num_tasks)
+        job = self.submit(tasks, num_tasks=num_tasks, cache_key=cache_key)
         try:
             job.wait(poll_seconds=self.poll_seconds)
             for result in job.results():
+                def sort_key(name):
+                    return (
+                        'exception' not in name,
+                        'args' not in name,
+                        'path' not in name,
+                        'time' in name,
+                        len(name),
+                    )
                 if result['exception']:
+                    logging.error(
+                        "Re-raising exception thrown by task:\n" +
+                        "\n".join(
+                            "  *%37s : %s" % (
+                                key,
+                                str(result[key])
+                                .strip()
+                                .replace("\n", "\n  *" + " " * 40))
+                            for key in sorted(result, key=sort_key)
+                            if result[key] is not None))
                     raise result['exception']
                 for result_item in result['return_value']:
                     yield result_item
@@ -149,10 +162,10 @@ class Client(object):
             status_pages.update(storage.list_contents(
                 self.storage_prefix + "/" + prefix))
         for source_object in status_pages:
-            parsed = naming.parse_status_name(source_object)
+            parsed = naming.parse_status_page_name(source_object)
             if parsed['status'] == 'active':
                 parsed['status'] = 'done'
-                dest_object = naming.status_name(**parsed)
+                dest_object = naming.status_page_name(**parsed)
                 logging.info("Marking job '%s' done: renaming %s -> %s" % (
                     parsed['job_name'],
                     source_object,
@@ -184,6 +197,7 @@ class Client(object):
     def job_summary(self, job_names=None, include_done=False):
         prefixes = naming.status_prefixes(
             job_names=job_names,
+            formats=["json"],
             statuses=(["active"] + (["done"] if include_done else [])))
         all_objects = []
         for prefix in prefixes:
@@ -192,21 +206,15 @@ class Client(object):
                     self.storage_prefix + "/" + prefix))
         logging.debug("Listed %d status pages from prefixes: %s" % (
             len(all_objects), " ".join(prefixes)))
-        results = collections.OrderedDict()
-
-        for obj in sorted(all_objects):
-            parsed = naming.parse_status_name(obj)
-            cache_key = naming.cache_key_from_job_name(parsed['job_name'])
-            if cache_key not in results:
-                results[cache_key] = []
-            results[cache_key].append(parsed)
-
-        return results
+        return [
+            naming.parse_status_page_name(obj)
+            for obj in sorted(all_objects)
+        ]
 
     def cleanup(self):
         if self.never_cleanup:
             logging.warn("Cleanup disabled; skipping.")
-            return
-        for job in self.submitted_jobs:
-            logging.info("Cleaning up for job: %s" % job.job_name)
-            self.cleanup_job(job.job_name)
+        else:
+            for job in self.submitted_jobs:
+                logging.info("Cleaning up for job: %s" % job.job_name)
+                self.cleanup_job(job.job_name)

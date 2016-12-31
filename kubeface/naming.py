@@ -60,24 +60,24 @@ def task_result_name(task_name):
     return "result::" + task_name
 
 
-def status_name(job_name, fmt, status):
-    assert fmt in STATUS_FORMATS, "Invalid format: %s" % fmt
+def status_page_name(job_name, format, status):
+    assert format in STATUS_FORMATS, "Invalid format: %s" % format
     assert status in STATUSES, "Invalid status: %s" % status
-    return "%s::%s::%s.%s" % (status, fmt, job_name, fmt)
+    return "%s::%s::%s.%s" % (status, format, job_name, format)
 
 
-def parse_status_name(status_name_string):
-    (status, fmt, rest) = status_name_string.split("::", 2)
+def parse_status_page_name(page_name):
+    (status, format, rest) = page_name.split("::", 2)
     assert status in STATUSES
-    assert fmt in STATUS_FORMATS
-    (job_name, fmt2) = rest.rsplit(".", 1)
-    assert fmt == fmt2
+    assert format in STATUS_FORMATS
+    (job_name, format2) = rest.rsplit(".", 1)
+    assert format == format2
     result = {
         'job_name': job_name,
-        'fmt': fmt,
+        'format': format,
         'status': status,
+        'status_page_name': page_name,
     }
-    assert status_name(**result) == status_name_string
     return result
 
 
@@ -90,8 +90,8 @@ def status_prefixes(
         # Only some jobs.
         for job in job_names:
             for status in statuses:
-                for fmt in formats:
-                    result.append("%s::%s::%s" % (status, fmt, job))
+                for format in formats:
+                    result.append("%s::%s::%s" % (status, format, job))
     else:
         # All jobs.
         if set(formats) == set(STATUS_FORMATS):
@@ -101,8 +101,8 @@ def status_prefixes(
         else:
             # Only some formats, all jobs.
             for status in statuses:
-                for fmt in formats:
-                    result.append("%s::%s::" % (status, fmt))
+                for format in formats:
+                    result.append("%s::%s::" % (status, format))
     return result
 
 

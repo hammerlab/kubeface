@@ -111,10 +111,16 @@ def move(source, dest):
 
     request = service.objects().rewrite(
         sourceBucket=bucket_name,
-        source_object=source_object,
+        sourceObject=source_object,
         destinationBucket=bucket_name,
         destinationObject=dest_object,
         body={})
+    request.execute()
+
+    # Delete source.
+    request = service.objects().delete(
+        bucket=bucket_name,
+        object=source_object)
     request.execute()
 
 
