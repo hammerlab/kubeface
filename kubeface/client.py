@@ -153,7 +153,7 @@ class Client(object):
                 for result_item in result['return_value']:
                     yield result_item
         finally:
-            self.mark_jobs_done(job_names=job.job_name)
+            self.mark_jobs_done(job_names=[job.job_name])
 
     def mark_jobs_done(self, job_names=None):
         status_pages = set()
@@ -162,12 +162,12 @@ class Client(object):
             status_pages.update(storage.list_contents(
                 self.storage_prefix + "/" + prefix))
         for source_object in status_pages:
-            parsed = naming.parse_status_page_name(source_object)
-            if parsed['status'] == 'active':
-                parsed['status'] = 'done'
-                dest_object = naming.status_page_name(**parsed)
+            parsed = naming.JOB_STATUS_PAGE.make_tuple(source_object)
+            if parsed.status == 'active':
+                new_parsed = parsed._replace(status="done")
+                dest_object = naming.JOB_STATUS_PAGE.make_string(new_parsed)
                 logging.info("Marking job '%s' done: renaming %s -> %s" % (
-                    parsed['job_name'],
+                    parsed.job_name,
                     source_object,
                     dest_object))
                 storage.move(
@@ -177,7 +177,7 @@ class Client(object):
                 logging.info("Already marked done: %s" % source_object)
 
     def cleanup_job(self, job_name):
-        cache_key = naming.cache_key_from_job_name(job_name)
+        cache_key = naming.JOB.make_tuple(job_name).cache_key
         results = storage.list_contents(
             self.storage_prefix +
             "/" +
@@ -207,7 +207,7 @@ class Client(object):
         logging.debug("Listed %d status pages from prefixes: %s" % (
             len(all_objects), " ".join(prefixes)))
         return [
-            naming.parse_status_page_name(obj)
+            naming.JOB_STATUS_PAGE.make_tuple(obj)
             for obj in sorted(all_objects)
         ]
 

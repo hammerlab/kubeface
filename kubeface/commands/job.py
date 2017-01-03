@@ -52,16 +52,17 @@ def run(argv=sys.argv[1:]):
 
     jobs_by_cache_key = collections.defaultdict(list)
     job_info_by_name = {}
-    for job_info in summary:
+    for job_info_tuple in summary:
+        job_info = job_info_tuple._asdict()
         job_name = job_info.pop('job_name')
         del job_info['format']
-        cache_key = naming.cache_key_from_job_name(job_name)
+        cache_key = naming.JOB.make_tuple(job_name).cache_key
         jobs_by_cache_key[cache_key].append(job_name)
         if job_name in job_info_by_name:
             logging.warning("Multiple status pages for job: %s: %s %s" % (
                 job_name,
-                job_info['status_page_name'],
-                job_info_by_name[job_name]['status_page_name']))
+                job_info['job_status_page_name'],
+                job_info_by_name[job_name]['job_status_page_name']))
         job_info_by_name[job_name] = job_info
 
     for cache_key in jobs_by_cache_key:
