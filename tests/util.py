@@ -3,9 +3,23 @@ import shutil
 import tempfile
 import logging
 
+import kubeface
+import kubeface.bucket_storage
+
+
 logging.basicConfig(level=logging.DEBUG)
 
 KEEP_FILES = os.environ.get("KUBEFACE_TEST_KEEP_FILES")
+
+
+def wipe_bucket(bucket_url):
+    objects = kubeface.bucket_storage.list_contents(bucket_url)
+    for obj in objects:
+        kubeface.bucket_storage.delete(bucket_url + "/" + obj)
+
+
+def check_empty(bucket_url):
+    assert not kubeface.bucket_storage.list_contents(bucket_url)
 
 
 def with_bucket_storage(function):
@@ -14,7 +28,9 @@ def with_bucket_storage(function):
         logging.fatal("No bucket defined")
 
     def test_function():
+        check_empty("gs://" + bucket)
         function("gs://" + bucket)
+        wipe_bucket("gs://" + bucket)
     return test_function
 
 
