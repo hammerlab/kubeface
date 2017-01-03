@@ -94,14 +94,13 @@ class KubernetesBackend(Backend):
                     time.sleep(sleep_time)
 
     def task_specification(self, task_name, task_input, task_output):
-        cache_key = naming.cache_key_from_task_name(task_name)
-        task_num = naming.task_num_from_task_name(task_name)
+        task_info = naming.TASK.make_tuple(task_name)
         logging.info(
             "Generating kubernetes specification for task %d in job %s" % (
-                task_num, cache_key))
+                task_info.task_num, task_info.cache_key))
 
         sanitized_task_name = naming.sanitize(task_name)
-        sanitized_cache_key = naming.sanitize(cache_key)
+        sanitized_cache_key = naming.sanitize(task_info.cache_key)
 
         result = {
             "kind": "Pod",
@@ -116,7 +115,7 @@ class KubernetesBackend(Backend):
             "spec": {
                 "containers": [
                     {
-                        "name": str(task_num),
+                        "name": str(task_info.task_num),
                         "image": self.worker_configuration.image,
                         "imagePullPolicy": self.image_pull_policy,
                         "command": [

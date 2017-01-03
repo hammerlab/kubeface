@@ -75,3 +75,11 @@ def status_prefixes(
         job_name=job_names,
         format=formats,
         status=statuses)
+
+
+def sanitize(name):
+    return (
+        name
+        .replace(".", "-")
+        .replace(":", "-")
+        .replace("_", "-").lower())
