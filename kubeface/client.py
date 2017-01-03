@@ -1,8 +1,9 @@
 import math
+import logging
 
 from .job import Job
 from .task import Task
-from . import backends, worker_configuration
+from . import backends, worker_configuration, naming, storage
 
 
 def run_multiple(function, values):
@@ -31,10 +32,9 @@ class Client(object):
             choices=('sooner', 'later'),
             default=["sooner"])
         group.add_argument(
-            "--no-cleanup",
-            action="store_false",
-            default=True,
-            dest="cleanup")
+            "--never-cleanup",
+            action="store_true",
+            default=False)
 
         worker_configuration.WorkerConfiguration.add_args(parser)
         backends.add_args(parser)
@@ -48,7 +48,7 @@ class Client(object):
             poll_seconds=args.poll_seconds,
             storage_prefix=args.storage_prefix,
             cache_key_prefix=args.cache_key_prefix,
-            cleanup=args.cleanup)
+            never_cleanup=args.never_cleanup)
 
     def __init__(
             self,
@@ -57,38 +57,39 @@ class Client(object):
             poll_seconds=30.0,
             storage_prefix="gs://kubeface",
             cache_key_prefix=None,
-            cleanup=True):
+            never_cleanup=False):
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.poll_seconds = poll_seconds
         self.storage_prefix = storage_prefix
-        self.cache_key_prefix = cache_key_prefix
-        self.cleanup = cleanup
+        self.cache_key_prefix = (
+            cache_key_prefix if cache_key_prefix
+            else naming.make_cache_key_prefix())
+        self.never_cleanup = never_cleanup
 
-        self.num_submitted = 0
-
-        self.backend.cleanup = cleanup
+        self.submitted_jobs = []
 
     def next_cache_key(self):
-        if not self.cache_key_prefix:
-            return None
-        return "%s-%03d" % (self.cache_key_prefix, self.num_submitted)
+        return "%s-%03d" % (
+            self.cache_key_prefix,
+            len(self.submitted_jobs))
 
-    def submit(self, tasks, num_tasks=None):
+    def submit(self, tasks, num_tasks=None, cache_key=None):
         if num_tasks is None:
             try:
                 num_tasks = len(tasks)
             except TypeError:
                 pass
-        return Job(
+        job = Job(
             self.backend,
             tasks,
             num_tasks=num_tasks,
-            cache_key=self.next_cache_key(),
+            cache_key=cache_key if cache_key else self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
-            storage_prefix=self.storage_prefix,
-            cleanup=self.cleanup)
+            storage_prefix=self.storage_prefix)
+        self.submitted_jobs.append(job)
+        return job
 
     def map(
             self,
@@ -96,7 +97,8 @@ class Client(object):
             iterable,
             items_per_task=1,
             batched=False,
-            num_items=None):
+            num_items=None,
+            cache_key=None):
         def grouped():
             iterator = iter(iterable)
             while True:
@@ -124,10 +126,95 @@ class Client(object):
         else:
             tasks = (
                 Task(run_multiple, (function, values)) for values in grouped())
-        job = self.submit(tasks, num_tasks=num_tasks)
-        job.wait(poll_seconds=self.poll_seconds)
-        for result in job.results():
-            if result['exception']:
-                raise result['exception']
-            for result_item in result['return_value']:
-                yield result_item
+        job = self.submit(tasks, num_tasks=num_tasks, cache_key=cache_key)
+        try:
+            job.wait(poll_seconds=self.poll_seconds)
+            for result in job.results():
+                def sort_key(name):
+                    return (
+                        'exception' not in name,
+                        'args' not in name,
+                        'path' not in name,
+                        'time' in name,
+                        len(name),
+                    )
+                if result['exception']:
+                    logging.error(
+                        "Re-raising exception thrown by task:\n" +
+                        "\n".join(
+                            "  *%37s : %s" % (
+                                key,
+                                str(result[key])
+                                .strip()
+                                .replace("\n", "\n  *" + " " * 40))
+                            for key in sorted(result, key=sort_key)
+                            if result[key] is not None))
+                    raise result['exception']
+                for result_item in result['return_value']:
+                    yield result_item
+        finally:
+            self.mark_jobs_done(job_names=[job.job_name])
+
+    def mark_jobs_done(self, job_names=None):
+        status_pages = set()
+        status_prefixes = naming.status_prefixes(job_names=job_names)
+        for prefix in status_prefixes:
+            status_pages.update(storage.list_contents(
+                self.storage_prefix + "/" + prefix))
+        for source_object in status_pages:
+            parsed = naming.JOB_STATUS_PAGE.make_tuple(source_object)
+            if parsed.status == 'active':
+                new_parsed = parsed._replace(status="done")
+                dest_object = naming.JOB_STATUS_PAGE.make_string(new_parsed)
+                logging.info("Marking job '%s' done: renaming %s -> %s" % (
+                    parsed.job_name,
+                    source_object,
+                    dest_object))
+                storage.move(
+                    self.storage_prefix + "/" + source_object,
+                    self.storage_prefix + "/" + dest_object)
+            else:
+                logging.info("Already marked done: %s" % source_object)
+
+    def cleanup_job(self, job_name):
+        cache_key = naming.JOB.make_tuple(job_name).cache_key
+        results = storage.list_contents(
+            self.storage_prefix +
+            "/" +
+            naming.task_result_prefix(cache_key))
+        inputs = storage.list_contents(
+            self.storage_prefix +
+            "/" +
+            naming.task_input_prefix(cache_key))
+        logging.info("Cleaning up cache key '%s': %d results, %d inputs." % (
+            cache_key, len(results), len(inputs)))
+
+        for item in results + inputs:
+            storage.delete(self.storage_prefix + "/" + item)
+
+        self.mark_jobs_done(job_names=[job_name])
+
+    def job_summary(self, job_names=None, include_done=False):
+        prefixes = naming.status_prefixes(
+            job_names=job_names,
+            formats=["json"],
+            statuses=(["active"] + (["done"] if include_done else [])))
+        all_objects = []
+        for prefix in prefixes:
+            all_objects.extend(
+                storage.list_contents(
+                    self.storage_prefix + "/" + prefix))
+        logging.debug("Listed %d status pages from prefixes: %s" % (
+            len(all_objects), " ".join(prefixes)))
+        return [
+            naming.JOB_STATUS_PAGE.make_tuple(obj)
+            for obj in sorted(all_objects)
+        ]
+
+    def cleanup(self):
+        if self.never_cleanup:
+            logging.warn("Cleanup disabled; skipping.")
+        else:
+            for job in self.submitted_jobs:
+                logging.info("Cleaning up for job: %s" % job.job_name)
+                self.cleanup_job(job.job_name)

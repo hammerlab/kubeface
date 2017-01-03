@@ -9,7 +9,7 @@ import tempfile
 
 from .. import storage, serialization
 from ..common import configure_logging
-    
+
 parser = argparse.ArgumentParser(description=__doc__)
 
 parser.add_argument("input_path")
@@ -42,7 +42,7 @@ def run(argv=sys.argv[1:]):
     input_handle = storage.get(args.input_path)
     task = serialization.load(input_handle)
 
-    logging.info("Deserailized task: %s" % task)
+    logging.info("Deserialized task: %s" % task)
     logging.info("Running task.")
     result = task.run()
     logging.info("Done running task.")

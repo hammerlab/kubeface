@@ -10,9 +10,19 @@ class DefaultStatusWriter(object):
         self.storage_prefix = storage_prefix
         self.job_name = job_name
         self.json_path = (
-            storage_prefix + "/" + naming.status_name(job_name, "json", True))
+            storage_prefix +
+            "/" +
+            naming.JOB_STATUS_PAGE.make_string(
+                job_name=job_name,
+                format="json",
+                status="active"))
         self.html_path = (
-            storage_prefix + "/" + naming.status_name(job_name, "html", True))
+            storage_prefix +
+            "/" +
+            naming.JOB_STATUS_PAGE.make_string(
+                job_name=job_name,
+                format="html",
+                status="active"))
 
     def print_info(self):
         print("Job status available at:")

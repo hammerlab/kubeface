@@ -16,17 +16,15 @@ class Job(object):
             tasks_iter,
             max_simultaneous_tasks,
             storage_prefix,
-            cache_key=None,
-            num_tasks=None,
-            cleanup=True):
+            cache_key,
+            num_tasks=None):
 
         self.backend = backend
         self.tasks_iter = tasks_iter
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.storage_prefix = storage_prefix
-        self.cache_key = cache_key if cache_key else naming.make_cache_key()
+        self.cache_key = cache_key
         self.num_tasks = num_tasks
-        self.cleanup = cleanup
 
         self.job_name = naming.make_job_name(self.cache_key)
         self.submitted_tasks = []
@@ -65,9 +63,11 @@ class Job(object):
             except StopIteration:
                 return False
 
-            task_name = naming.make_task_name(
-                self.cache_key, len(self.submitted_tasks))
-            task_output = self.storage_path(naming.task_result_name(task_name))
+            task_name = naming.TASK.make_string(
+                cache_key=self.cache_key,
+                task_num=len(self.submitted_tasks))
+            task_output = self.storage_path(
+                naming.TASK_RESULT.make_string(task_name=task_name))
 
             if task_name in self.completed_tasks:
                 logging.info("Using existing result: %s" % task_output)
@@ -75,7 +75,8 @@ class Job(object):
                 self.submitted_tasks.append(task_name)
                 task_name = None
 
-        task_input = self.storage_path(naming.task_input_name(task_name))
+        task_input = self.storage_path(
+            naming.TASK_INPUT.make_string(task_name=task_name))
         with tempfile.TemporaryFile(prefix="kubeface-upload-") as fd:
             dump(task, fd)
             size_string = human_readable_memory_size(fd.tell())
@@ -95,7 +96,7 @@ class Job(object):
             self.storage_path(
                 naming.task_result_prefix(self.cache_key, self.running_tasks)))
         self.completed_tasks.update(
-            naming.task_name_from_result_name(x)
+            naming.TASK_RESULT.make_tuple(x).task_name
             for x in completed_task_result_names)
         self.running_tasks = set(self.submitted_tasks).difference(
             self.completed_tasks)
@@ -133,9 +134,8 @@ class Job(object):
         if self.running_tasks:
             raise RuntimeError("Not all tasks have completed")
         for task_name in self.submitted_tasks:
-            result_file = self.storage_path(naming.task_result_name(task_name))
+            result_file = self.storage_path(
+                naming.TASK_RESULT.make_string(task_name=task_name))
             with closing(storage.get(result_file)) as handle:
                 value = load(handle)
-            if self.cleanup:
-                storage.delete(result_file)
             yield value

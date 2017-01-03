@@ -103,6 +103,28 @@ def list_contents(prefix):
 
 
 @robustify
+def move(source, dest):
+    # From https://cloud.google.com/storage/docs/json_api/v1/objects/rewrite
+    (bucket_name, source_object) = split_bucket_and_name(source)
+    (bucket_name2, dest_object) = split_bucket_and_name(dest)
+    service = get_service()
+
+    request = service.objects().rewrite(
+        sourceBucket=bucket_name,
+        sourceObject=source_object,
+        destinationBucket=bucket_name,
+        destinationObject=dest_object,
+        body={})
+    request.execute()
+
+    # Delete source.
+    request = service.objects().delete(
+        bucket=bucket_name,
+        object=source_object)
+    request.execute()
+
+
+@robustify
 def put(
         name,
         input_handle,
