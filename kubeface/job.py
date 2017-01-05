@@ -1,12 +1,12 @@
 import logging
 import time
 import tempfile
-from contextlib import closing
 
-from .serialization import load, dump
+from .serialization import dump
 from . import storage, naming
 from .status_writer import DefaultStatusWriter
 from .common import human_readable_memory_size
+from .result import Result
 
 
 class Job(object):
@@ -17,7 +17,8 @@ class Job(object):
             max_simultaneous_tasks,
             storage_prefix,
             cache_key,
-            num_tasks=None):
+            num_tasks=None,
+            wait_to_raise_task_exception=False):
 
         self.backend = backend
         self.tasks_iter = tasks_iter
@@ -25,11 +26,12 @@ class Job(object):
         self.storage_prefix = storage_prefix
         self.cache_key = cache_key
         self.num_tasks = num_tasks
+        self.wait_to_raise_task_exception = wait_to_raise_task_exception
 
         self.job_name = naming.make_job_name(self.cache_key)
         self.submitted_tasks = []
         self.reused_tasks = set()
-        self.completed_tasks = set()
+        self.completed_tasks = {}
         self.running_tasks = set()
         self.status_writer = DefaultStatusWriter(storage_prefix, self.job_name)
 
@@ -66,11 +68,15 @@ class Job(object):
             task_name = naming.TASK.make_string(
                 cache_key=self.cache_key,
                 task_num=len(self.submitted_tasks))
-            task_output = self.storage_path(
-                naming.TASK_RESULT.make_string(task_name=task_name))
+            task_result_template = self.storage_path(
+                naming.TASK_RESULT.template.format(
+                    task_name=task_name,
+                    result_type="{result_type}"))
 
             if task_name in self.completed_tasks:
-                logging.info("Using existing result: %s" % task_output)
+                completed_task_info = self.completed_tasks[task_name]
+                logging.info("Using existing result: %s" % (
+                    completed_task_info['task_result_name']))
                 self.reused_tasks.add(task_name)
                 self.submitted_tasks.append(task_name)
                 task_name = None
@@ -86,7 +92,7 @@ class Job(object):
                 task_name))
             fd.seek(0)
             storage.put(task_input, fd)
-        self.backend.submit_task(task_name, task_input, task_output)
+        self.backend.submit_task(task_name, task_input, task_result_template)
         self.status_writer.update(self.status_dict())
         self.submitted_tasks.append(task_name)
         return True
@@ -95,11 +101,27 @@ class Job(object):
         completed_task_result_names = storage.list_contents(
             self.storage_path(
                 naming.task_result_prefix(self.cache_key, self.running_tasks)))
-        self.completed_tasks.update(
-            naming.TASK_RESULT.make_tuple(x).task_name
-            for x in completed_task_result_names)
+        for completed_task_result_name in completed_task_result_names:
+            info = naming.TASK_RESULT.make_tuple(completed_task_result_name)
+            if info.task_name not in self.completed_tasks:
+                if info.result_type == 'exception':
+                    result = Result.from_storage(
+                        self.storage_path(completed_task_result_name))
+                    result.log()
+                    if self.wait_to_raise_task_exception:
+                        logging.warning(
+                            "Waiting for other tasks to run before raising "
+                            "exception.")
+                    else:
+                        result.raise_if_exception()
+                        assert False
+                self.completed_tasks[info.task_name] = {
+                    'parsed_result_name': info,
+                    'task_result_name': completed_task_result_name,
+                }
+
         self.running_tasks = set(self.submitted_tasks).difference(
-            self.completed_tasks)
+            set(self.completed_tasks))
 
     def wait(self, poll_seconds=5.0):
         """
@@ -135,7 +157,6 @@ class Job(object):
             raise RuntimeError("Not all tasks have completed")
         for task_name in self.submitted_tasks:
             result_file = self.storage_path(
-                naming.TASK_RESULT.make_string(task_name=task_name))
-            with closing(storage.get(result_file)) as handle:
-                value = load(handle)
-            yield value
+                self.completed_tasks[task_name]['task_result_name'])
+            result = Result.from_storage(result_file)
+            yield result

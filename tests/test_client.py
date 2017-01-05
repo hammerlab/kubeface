@@ -1,5 +1,6 @@
 import numpy
 import argparse
+import time
 from numpy import testing
 
 from kubeface import (
@@ -28,6 +29,7 @@ def exercise_client(c, low=1, high=10):
         list(c.map(lambda x: 2.0 / x, range(low, high))),
         2.0 / numpy.arange(low, high))
 
+
 @util.with_local_and_bucket_storage
 def test_local_process_backend(bucket):
     backend = local_process_backend.LocalProcessBackend()
@@ -54,11 +56,12 @@ def test_local_process_docker_backend(bucket):
 
 
 @util.with_local_and_bucket_storage
-def test_worker_exception(bucket):
+def test_worker_exception_delayed(bucket):
     c = client_from_commandline_args([
         "--poll-seconds", "1.1",
         "--backend", "local-process",
         "--storage-prefix", bucket,
+        "--wait-to-raise-task-exception",
     ])
     mapper = c.map(lambda x: 2 / (x - 2), range(10))
     testing.assert_equal(next(mapper), -1)
@@ -71,6 +74,17 @@ def test_worker_exception(bucket):
     testing.assert_raises(StopIteration, next, mapper)
     testing.assert_equal(len(c.job_summary(include_done=False)), 0)
     testing.assert_equal(len(c.job_summary(include_done=True)), 1)
+
+
+@util.with_local_and_bucket_storage
+def test_worker_exception(bucket):
+    c = client_from_commandline_args([
+        "--poll-seconds", "1.1",
+        "--backend", "local-process",
+        "--storage-prefix", bucket,
+    ])
+    mapper = c.map(lambda x: 2 / (x - 2), range(10))
+    testing.assert_raises(ZeroDivisionError, next, mapper)
 
 
 @util.with_local_and_bucket_storage

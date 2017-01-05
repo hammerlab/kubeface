@@ -3,7 +3,6 @@ from datetime import datetime
 import getpass
 import hashlib
 import time
-from os.path import commonprefix
 
 from .stringable import Stringable
 
@@ -13,7 +12,7 @@ JOB = Stringable(
 
 TASK = Stringable(
     "Task",
-    "{cache_key}::{task_num:d}")
+    "{cache_key}::{task_num:06d}")
 
 TASK_INPUT = Stringable(
     "TaskInput",
@@ -21,7 +20,10 @@ TASK_INPUT = Stringable(
 
 TASK_RESULT = Stringable(
     "TaskResult",
-    "result::{task_name}")
+    "result::{task_name}+{result_type}",
+    valid_values={
+        'result_type': ["value", "exception"],
+    })
 
 JOB_STATUS_PAGE = Stringable(
     "JobStatusPage",
@@ -54,9 +56,7 @@ def make_job_name(cache_key):
 def task_result_prefix(cache_key, task_names=[]):
     prefix = "result::" + cache_key
     if task_names:
-        better_prefix = commonprefix([
-            TASK_RESULT.make_string(task_name=t) for t in task_names
-        ])
+        better_prefix = TASK_RESULT.prefix(task_name=list(task_names))
         assert better_prefix.startswith(prefix)
         return better_prefix
     return prefix
@@ -66,10 +66,7 @@ def task_input_prefix(cache_key):
     return "input::" + cache_key
 
 
-def status_prefixes(
-        job_names=None,
-        formats=None,
-        statuses=None):
+def status_prefixes(job_names=None, formats=None, statuses=None):
     return JOB_STATUS_PAGE.prefixes(
         max_prefixes=4,
         job_name=job_names,

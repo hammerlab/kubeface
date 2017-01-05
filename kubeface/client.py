@@ -35,6 +35,10 @@ class Client(object):
             "--never-cleanup",
             action="store_true",
             default=False)
+        group.add_argument(
+            "--wait-to-raise-task-exception",
+            action="store_true",
+            default=False)
 
         worker_configuration.WorkerConfiguration.add_args(parser)
         backends.add_args(parser)
@@ -48,7 +52,8 @@ class Client(object):
             poll_seconds=args.poll_seconds,
             storage_prefix=args.storage_prefix,
             cache_key_prefix=args.cache_key_prefix,
-            never_cleanup=args.never_cleanup)
+            never_cleanup=args.never_cleanup,
+            wait_to_raise_task_exception=args.wait_to_raise_task_exception)
 
     def __init__(
             self,
@@ -57,7 +62,8 @@ class Client(object):
             poll_seconds=30.0,
             storage_prefix="gs://kubeface",
             cache_key_prefix=None,
-            never_cleanup=False):
+            never_cleanup=False,
+            wait_to_raise_task_exception=False):
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
@@ -67,6 +73,7 @@ class Client(object):
             cache_key_prefix if cache_key_prefix
             else naming.make_cache_key_prefix())
         self.never_cleanup = never_cleanup
+        self.wait_to_raise_task_exception = wait_to_raise_task_exception
 
         self.submitted_jobs = []
 
@@ -87,7 +94,8 @@ class Client(object):
             num_tasks=num_tasks,
             cache_key=cache_key if cache_key else self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
-            storage_prefix=self.storage_prefix)
+            storage_prefix=self.storage_prefix,
+            wait_to_raise_task_exception=self.wait_to_raise_task_exception)
         self.submitted_jobs.append(job)
         return job
 
@@ -130,27 +138,9 @@ class Client(object):
         try:
             job.wait(poll_seconds=self.poll_seconds)
             for result in job.results():
-                def sort_key(name):
-                    return (
-                        'exception' not in name,
-                        'args' not in name,
-                        'path' not in name,
-                        'time' in name,
-                        len(name),
-                    )
-                if result['exception']:
-                    logging.error(
-                        "Re-raising exception thrown by task:\n" +
-                        "\n".join(
-                            "  *%37s : %s" % (
-                                key,
-                                str(result[key])
-                                .strip()
-                                .replace("\n", "\n  *" + " " * 40))
-                            for key in sorted(result, key=sort_key)
-                            if result[key] is not None))
-                    raise result['exception']
-                for result_item in result['return_value']:
+                result.log()
+                result.raise_if_exception()
+                for result_item in result.return_value:
                     yield result_item
         finally:
             self.mark_jobs_done(job_names=[job.job_name])

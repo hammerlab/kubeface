@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import time
 import logging
 
 import kubeface
@@ -28,7 +29,8 @@ def with_bucket_storage(function):
         logging.fatal("No bucket defined")
 
     def test_function():
-        check_empty("gs://" + bucket)
+        # check_empty("gs://" + bucket)
+        wipe_bucket("gs://" + bucket)
         function("gs://" + bucket)
         wipe_bucket("gs://" + bucket)
     return test_function
@@ -36,13 +38,10 @@ def with_bucket_storage(function):
 
 def with_local_storage(function):
     def test_function():
-        tempdir = None
-        try:
-            tempdir = tempfile.mkdtemp(dir='/tmp')
-            function(tempdir)
-        finally:
-            if tempdir and not KEEP_FILES:
-                shutil.rmtree(tempdir)
+        tempdir = tempfile.mkdtemp(dir='/tmp')
+        function(tempdir)
+        if not KEEP_FILES:
+            shutil.rmtree(tempdir)
     return test_function
 
 
