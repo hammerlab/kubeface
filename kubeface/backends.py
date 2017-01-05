@@ -1,22 +1,24 @@
 import collections
-from . import local_process_backend, kubernetes_backend
+from . import local_process_backend
+from . import local_process_docker_backend
+from . import kubernetes_backend
 
 BACKENDS = collections.OrderedDict([
     ('local-process', local_process_backend.LocalProcessBackend),
+    ('local-process-docker',
+        local_process_docker_backend.LocalProcessDockerBackend),
     ('kubernetes', kubernetes_backend.KubernetesBackend),
 ])
 
 
 def add_args(parser):
-    group = parser.add_argument_group("kubeface backend")
-    group.add_argument(
+    parser.add_argument(
         "--backend",
         choices=tuple(BACKENDS),
         default=tuple(BACKENDS)[0])
 
     for (backend, klass) in BACKENDS.items():
-        group = parser.add_argument_group("kubeface %s backend" % backend)
-        klass.add_args(group)
+        klass.add_args(parser)
     return parser
 
 

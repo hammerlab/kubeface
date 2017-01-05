@@ -1,5 +1,6 @@
 import math
 import logging
+import os
 
 from .job import Job
 from .task import Task
@@ -24,13 +25,10 @@ class Client(object):
             default=30.0)
         group.add_argument(
             "--storage-prefix",
-            default="gs://kubeface")
+            default=os.environ.get("KUBEFACE_BUCKET", "gs://kubeface"),
+            help="Default: %(default)s")
         group.add_argument(
             "--cache-key-prefix")
-        group.add_argument(
-            "--fail-on-worker-exception",
-            choices=('sooner', 'later'),
-            default=["sooner"])
         group.add_argument(
             "--never-cleanup",
             action="store_true",
@@ -40,8 +38,8 @@ class Client(object):
             action="store_true",
             default=False)
 
-        worker_configuration.WorkerConfiguration.add_args(parser)
-        backends.add_args(parser)
+        worker_configuration.WorkerConfiguration.add_args(group)
+        backends.add_args(group)
 
     @staticmethod
     def from_args(args):
