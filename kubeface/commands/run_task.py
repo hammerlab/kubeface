@@ -44,8 +44,10 @@ def run(argv=sys.argv[1:]):
 
     logging.info("Deserialized task: %s" % task)
     logging.info("Running task.")
-    result = task.run()
+    result = task.run(input_size=input_handle.tell())
     logging.info("Done running task.")
+
+    result_path = args.result_path.format(result_type=result.result_type)
 
     with tempfile.TemporaryFile(
             prefix="kubeface-run-task-result-", suffix=".pkl") as fd:
@@ -53,8 +55,8 @@ def run(argv=sys.argv[1:]):
         serialization.dump(result, fd)
         logging.info("Serialized to %d bytes." % fd.tell())
         fd.seek(0)
-        logging.info("Writing: %s" % args.result_path)
-        storage.put(args.result_path, fd)
+        logging.info("Writing: %s" % result_path)
+        storage.put(result_path, fd)
 
     if args.delete_input:
         logging.info("Deleting: %s" % args.input_path)
