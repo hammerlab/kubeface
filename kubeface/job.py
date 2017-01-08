@@ -146,6 +146,33 @@ class Job(object):
         self.running_tasks = set(self.submitted_tasks).difference(
             set(self.completed_tasks))
 
+    def tasks_elegible_for_speculation(self, speculation_runtime_threshold):
+        # Consider speculating.
+        elegible_tasks_by_runtime = [
+            task_name
+            for task_name in self.running_tasks
+            if (
+                self.task_queue_times[task_name][-1] >
+                self.speculation_runtime_threshold)
+        ]
+        elegible_tasks = [
+            task_name
+            for task_name in elegible_tasks_by_runtime
+            if (
+                len(self.task_queue_times[task_name]) <
+                self.speculation_max_reruns)
+        ]
+        logging.info(
+            "%d tasks could be speculatively rerun based "
+            "on a queue time threshold of %0.2f sec; of "
+            "these %d are elegible because they have not "
+            "been run more than %d times." % (
+                len(elegible_tasks_by_runtime),
+                speculation_runtime_threshold,
+                len(elegible_tasks),
+                self.speculation_max_reruns))
+        return elegible_tasks
+
     def wait(self, poll_seconds=5.0):
         """
         Run all tasks to completion.
@@ -188,7 +215,7 @@ class Job(object):
                         percent_tasks_running = (
                             len(self.running_tasks) * 100.0 /
                             len(self.submitted_tasks))
-                        if percent_tasks_running > self.speculation_percent:
+                        if percent_tasks_running < self.speculation_percent:
                             elapsed_times = [
                                 int(t["parsed_result_name"].result_time)
                                 for t in self.completed_tasks.values()
@@ -211,36 +238,8 @@ class Job(object):
                                     speculation_runtime_threshold))
 
                     if speculation_runtime_threshold is not None:
-                        # Consider speculating.
-                        elegible_tasks_by_runtime = [
-                            task_name
-                            for task_name in self.running_tasks
-                            if (
-                                self.task_queue_times[task_name][-1] >
-                                self.speculation_runtime_threshold)
-                        ]
-                        logging.info(
-                            "%d tasks are elegible for speculation based "
-                            "on a queue time threshold of %0.2f sec" % (
-                                len(elegible_tasks_by_runtime),
-                                speculation_runtime_threshold))
-
-                        elegible_tasks = [
-                            task_name
-                            for task_name in elegible_tasks_by_runtime
-                            if (
-                                len(self.task_queue_times[task_name]) <
-                                self.speculation_max_reruns)
-                        ]
-                        logging.info(
-                            "%d tasks are elegible for speculation based "
-                            "on a queue time threshold of %0.2f sec; of "
-                            "these %d are elegible because they have not "
-                            "been run more than %d times." % (
-                                len(elegible_tasks_by_runtime),
-                                speculation_runtime_threshold,
-                                len(elegible_tasks),
-                                self.speculation_max_reruns))
+                        elegible_tasks = self.elegible_tasks_by_runtime(
+                            speculation_runtime_threshold)
 
                         if elegible_tasks:
                             capacity = max(
