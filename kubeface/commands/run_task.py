@@ -6,6 +6,7 @@ import sys
 import argparse
 import logging
 import tempfile
+import math
 
 from .. import storage, serialization
 from ..common import configure_logging
@@ -47,7 +48,9 @@ def run(argv=sys.argv[1:]):
     result = task.run(input_size=input_handle.tell())
     logging.info("Done running task.")
 
-    result_path = args.result_path.format(result_type=result.result_type)
+    result_path = args.result_path.format(
+        result_type=result.result_type,
+        result_time=int(math.ceil(result.end_time)))
 
     with tempfile.TemporaryFile(
             prefix="kubeface-run-task-result-", suffix=".pkl") as fd:

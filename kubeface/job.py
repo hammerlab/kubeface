@@ -1,6 +1,9 @@
 import logging
 import time
 import tempfile
+import collections
+
+from numpy import percentile, mean
 
 from .serialization import dump
 from . import storage, naming
@@ -18,7 +21,10 @@ class Job(object):
             storage_prefix,
             cache_key,
             num_tasks=None,
-            wait_to_raise_task_exception=False):
+            wait_to_raise_task_exception=False,
+            speculation_percent=0,
+            speculation_runtime_percentile=99,
+            speculation_max_reruns=0):
 
         self.backend = backend
         self.tasks_iter = tasks_iter
@@ -27,8 +33,12 @@ class Job(object):
         self.cache_key = cache_key
         self.num_tasks = num_tasks
         self.wait_to_raise_task_exception = wait_to_raise_task_exception
+        self.speculation_percent = speculation_percent
+        self.speculation_runtime_percentile = speculation_runtime_percentile
+        self.speculation_max_reruns = speculation_max_reruns
 
         self.job_name = naming.make_job_name(self.cache_key)
+        self.task_queue_times = collections.defaultdict(list)
         self.submitted_tasks = []
         self.reused_tasks = set()
         self.completed_tasks = {}
@@ -57,7 +67,25 @@ class Job(object):
     def storage_path(self, filename):
         return self.storage_prefix + "/" + filename
 
-    def submit_one_task(self):
+    def submit_task(self, task_name):
+        queue_time = int(time.time())
+        task_result_template = self.storage_path(
+            naming.TASK_RESULT.template.format(
+                task_name=task_name,
+                attempt_num=len(self.task_queue_times[task_name]),
+                queue_time=queue_time,
+                result_type="{result_type}",   # filled in by worker
+                result_time="{result_time}"))  # filled in by worker
+
+        task_input = self.storage_path(
+            naming.TASK_INPUT.make_string(task_name=task_name))
+
+        self.backend.submit_task(task_name, task_input, task_result_template)
+        self.status_writer.update(self.status_dict())
+        self.submitted_tasks.append(task_name)
+        self.task_queue_times[task_name].append(queue_time)
+
+    def submit_next_task(self):
         task_name = None
         while task_name is None:
             try:
@@ -68,10 +96,6 @@ class Job(object):
             task_name = naming.TASK.make_string(
                 cache_key=self.cache_key,
                 task_num=len(self.submitted_tasks))
-            task_result_template = self.storage_path(
-                naming.TASK_RESULT.template.format(
-                    task_name=task_name,
-                    result_type="{result_type}"))
 
             if task_name in self.completed_tasks:
                 completed_task_info = self.completed_tasks[task_name]
@@ -92,9 +116,8 @@ class Job(object):
                 task_name))
             fd.seek(0)
             storage.put(task_input, fd)
-        self.backend.submit_task(task_name, task_input, task_result_template)
-        self.status_writer.update(self.status_dict())
-        self.submitted_tasks.append(task_name)
+
+        self.submit_task(task_name)
         return True
 
     def update(self):
@@ -126,26 +149,113 @@ class Job(object):
     def wait(self, poll_seconds=5.0):
         """
         Run all tasks to completion.
+
+        Speculation algorithm:
+            - No speculation occurs until all tasks have been submitted and at
+              least 100 - speculation_percent tasks have completed.
+            - Once this threshold is reached, tasks are rerun in order, i.e.
+              based how long they have been queued.
+            - A task will be rerun when its queue time exceeds
+              speculation_runtime_percentile of the queue times of the
+              tasks that completed successfully without speculation. This will
+              reset its queue time to 0.
+            - Tasks can be rerun up to speculation_max_reruns times.
+            - We are still limited by max_simultaneous_tasks. If more than this
+              number of tasks fail, we won't be able to recover.
         """
 
         while True:
             self.update()
-            tasks_to_submit = max(
+            num_to_submit = max(
                 0,
                 self.max_simultaneous_tasks -
                 len(self.running_tasks))
-            if tasks_to_submit == 0:
+            if num_to_submit == 0:
                 time.sleep(poll_seconds)
                 continue
 
-            logging.info("Submitting %d tasks" % tasks_to_submit)
-            if not all(self.submit_one_task() for _ in range(tasks_to_submit)):
+            logging.info("Submitting %d tasks" % num_to_submit)
+            if not all(self.submit_next_task() for _ in range(num_to_submit)):
                 # We've submitted all our tasks.
+                speculation_runtime_threshold = None
                 while True:
                     self.update()
                     self.status_writer.update(self.status_dict())
                     if not self.running_tasks:
                         return
+
+                    if speculation_runtime_threshold is None:
+                        percent_tasks_running = (
+                            len(self.running_tasks) * 100.0 /
+                            len(self.submitted_tasks))
+                        if percent_tasks_running > self.speculation_percent:
+                            elapsed_times = [
+                                int(t["parsed_result_name"].result_time)
+                                for t in self.completed_tasks.values()
+                            ]
+                            speculation_runtime_threshold = percentile(
+                                elapsed_times,
+                                self.speculation_runtime_percentile)
+                            logging.info(
+                                "Enabling speculation: %0.2ff%% of tasks "
+                                "running. "
+                                "Task queue times (sec): "
+                                "min=%0.1f mean=%0.1f max=%0.1f. Queue time "
+                                "threshold for resubmitting tasks will be "
+                                "%0.0f percentile of these times, which is "
+                                "%0.2f" % (
+                                    min(elapsed_times),
+                                    mean(elapsed_times),
+                                    max(elapsed_times),
+                                    self.speculation_runtime_percentile,
+                                    speculation_runtime_threshold))
+
+                    if speculation_runtime_threshold is not None:
+                        # Consider speculating.
+                        elegible_tasks_by_runtime = [
+                            task_name
+                            for task_name in self.running_tasks
+                            if (
+                                self.task_queue_times[task_name][-1] >
+                                self.speculation_runtime_threshold)
+                        ]
+                        logging.info(
+                            "%d tasks are elegible for speculation based "
+                            "on a queue time threshold of %0.2f sec" % (
+                                len(elegible_tasks_by_runtime),
+                                speculation_runtime_threshold))
+
+                        elegible_tasks = [
+                            task_name
+                            for task_name in elegible_tasks_by_runtime
+                            if (
+                                len(self.task_queue_times[task_name]) <
+                                self.speculation_max_reruns)
+                        ]
+                        logging.info(
+                            "%d tasks are elegible for speculation based "
+                            "on a queue time threshold of %0.2f sec; of "
+                            "these %d are elegible because they have not "
+                            "been run more than %d times." % (
+                                len(elegible_tasks_by_runtime),
+                                speculation_runtime_threshold,
+                                len(elegible_tasks),
+                                self.speculation_max_reruns))
+
+                        if elegible_tasks:
+                            capacity = max(
+                                0,
+                                self.max_simultaneous_tasks - sum(
+                                    len(self.task_queue_times[task_name])
+                                    for task_name in self.running_tasks))
+                            to_speculate = elegible_tasks[:capacity]
+                            logging.info(
+                                "Capacity for re-running up to %d tasks. "
+                                "Will speculatively re-run %d tasks." % (
+                                    len(to_speculate)))
+                            for task_name in to_speculate:
+                                self.submit_task(task_name)
+
                     logging.info("Waiting for %d tasks to complete: %s" % (
                         len(self.running_tasks),
                         " ".join(self.running_tasks)))

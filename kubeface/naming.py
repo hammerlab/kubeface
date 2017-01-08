@@ -20,7 +20,8 @@ TASK_INPUT = Stringable(
 
 TASK_RESULT = Stringable(
     "TaskResult",
-    "result::{task_name}+{result_type}",
+    "result::{task_name}+{attempt_num:d}+{queue_time}+{result_time}+"
+    "+{result_type}",
     valid_values={
         'result_type': ["value", "exception"],
     })
