@@ -153,7 +153,7 @@ class Job(object):
             for task_name in self.running_tasks
             if (
                 self.task_queue_times[task_name][-1] >
-                self.speculation_runtime_threshold)
+                speculation_runtime_threshold)
         ]
         elegible_tasks = [
             task_name
