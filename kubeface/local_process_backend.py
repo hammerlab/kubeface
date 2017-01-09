@@ -43,3 +43,8 @@ class LocalProcessBackend(Backend):
         command = self.worker_configuration.command(task_input, task_output)
         logging.debug("Running task '%s': %s" % (task_name, command))
         return subprocess.Popen(command, shell=True)
+
+    @staticmethod
+    def supports_storage_prefix(storage_prefix):
+        # local backends can work with any kind of storage
+        return True

@@ -4,7 +4,7 @@ import os
 
 from .job import Job
 from .task import Task
-from . import backends, worker_configuration, naming, storage
+from . import backends, worker_configuration, naming, storage, kubernetes_backend
 
 
 def run_multiple(function, values):
@@ -56,6 +56,9 @@ class Client(object):
     @staticmethod
     def from_args(args):
         backend = backends.backend_from_args(args)
+        if not backend.supports_storage_prefix(args.storage_prefix):
+            raise ValueError('Unsupported backend/storage combination: %s, %s' % (
+                args.backend, args.storage_prefix))
         return Client(
             backend,
             max_simultaneous_tasks=args.max_simultaneous_tasks,

@@ -7,6 +7,7 @@ import time
 from .backend import Backend
 from .worker_configuration import WorkerConfiguration
 from .common import check_call
+from .storage import is_google_storage_bucket
 from . import naming
 
 
@@ -139,3 +140,8 @@ class KubernetesBackend(Backend):
             }
         }
         return result
+
+    @staticmethod
+    def supports_storage_prefix(storage_prefix):
+        # kubernetes backends can only work with bucket storage
+        return is_google_storage_bucket(storage_prefix)
