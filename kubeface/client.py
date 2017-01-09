@@ -37,6 +37,18 @@ class Client(object):
             "--wait-to-raise-task-exception",
             action="store_true",
             default=False)
+        group.add_argument(
+            "--speculation-percent",
+            type=float,
+            default=20)
+        group.add_argument(
+            "--speculation-runtime-percentile",
+            type=float,
+            default=99)
+        group.add_argument(
+            "--speculation-max-reruns",
+            type=int,
+            default=1)
 
         worker_configuration.WorkerConfiguration.add_args(group)
         backends.add_args(group)
@@ -51,7 +63,10 @@ class Client(object):
             storage_prefix=args.storage_prefix,
             cache_key_prefix=args.cache_key_prefix,
             never_cleanup=args.never_cleanup,
-            wait_to_raise_task_exception=args.wait_to_raise_task_exception)
+            wait_to_raise_task_exception=args.wait_to_raise_task_exception,
+            speculation_percent=args.speculation_percent,
+            speculation_runtime_percentile=args.speculation_runtime_percentile,
+            speculation_max_reruns=args.speculation_max_reruns)
 
     def __init__(
             self,
@@ -61,7 +76,10 @@ class Client(object):
             storage_prefix="gs://kubeface",
             cache_key_prefix=None,
             never_cleanup=False,
-            wait_to_raise_task_exception=False):
+            wait_to_raise_task_exception=False,
+            speculation_percent=0,
+            speculation_runtime_percentile=99,
+            speculation_max_reruns=1):
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
@@ -72,6 +90,9 @@ class Client(object):
             else naming.make_cache_key_prefix())
         self.never_cleanup = never_cleanup
         self.wait_to_raise_task_exception = wait_to_raise_task_exception
+        self.speculation_percent = speculation_percent
+        self.speculation_runtime_percentile = speculation_runtime_percentile
+        self.speculation_max_reruns = speculation_max_reruns
 
         self.submitted_jobs = []
 
@@ -93,7 +114,10 @@ class Client(object):
             cache_key=cache_key if cache_key else self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
             storage_prefix=self.storage_prefix,
-            wait_to_raise_task_exception=self.wait_to_raise_task_exception)
+            wait_to_raise_task_exception=self.wait_to_raise_task_exception,
+            speculation_percent=self.speculation_percent,
+            speculation_runtime_percentile=self.speculation_runtime_percentile,
+            speculation_max_reruns=self.speculation_max_reruns)
         self.submitted_jobs.append(job)
         return job
 
