@@ -231,6 +231,7 @@ class Job(object):
                                 "threshold for resubmitting tasks will be "
                                 "%0.0f percentile of these times, which is "
                                 "%0.2f" % (
+                                    percent_tasks_running,
                                     min(elapsed_times),
                                     mean(elapsed_times),
                                     max(elapsed_times),
