@@ -1,3 +1,4 @@
+import math
 import numpy
 import argparse
 import subprocess
@@ -17,14 +18,6 @@ def client_from_commandline_args(argv):
     client.Client.add_args(parser)
     args = parser.parse_args(argv)
     return client.Client.from_args(args)
-
-
-def exercise_client(c, low=1, high=10):
-    # Using division gives us an easy way to test handling of tasks
-    # that throw division (by making low < 0) so it throws ZeroDivisionError
-    testing.assert_equal(
-        list(c.map(lambda x: 2.0 / x, range(low, high))),
-        2.0 / numpy.arange(low, high))
 
 
 def run_job_command(bucket, argv):
@@ -48,8 +41,8 @@ def test_job_command(bucket):
         "--storage-prefix", bucket,
     ])
 
-    mapper = c.map(lambda x: x + 5, range(10), cache_key='FOOBARBAZ')
-    testing.assert_equal(next(mapper), 5)
+    mapper = c.map(math.exp, range(10), cache_key='FOOBARBAZ')
+    testing.assert_equal(next(mapper), 1)
     assert 'FOOBARBAZ' in run_job_command(bucket, [])
     assert 'active' in (
         find_line_with(
