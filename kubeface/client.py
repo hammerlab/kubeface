@@ -55,13 +55,10 @@ class Client(object):
 
     @staticmethod
     def from_args(args):
-        # make sure user isn't trying to call a kubernetes backend with local storage
-        if args.backend == 'kubernetes' and \
-                not storage.is_google_storage_bucket(args.storage_prefix):
-                
-            raise ValueError('Cannot use kubernetes backend with local storage')
-
         backend = backends.backend_from_args(args)
+        if not backend.supports_storage_prefix(args.storage_prefix):
+            raise ValueError('Unsupported backend/storage combination: %s, %s' % (
+                args.backend, args.storage_prefix))
         return Client(
             backend,
             max_simultaneous_tasks=args.max_simultaneous_tasks,
