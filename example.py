@@ -5,7 +5,7 @@ Computes the square of numbers 1 .. N, where N is specified on the commandline.
 
 Example:
 
-$ python example.py 10 --backend local-process
+$ python example.py 10 --backend local-process --storage-prefix /tmp
 
 """
 
