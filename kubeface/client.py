@@ -4,7 +4,7 @@ import os
 
 from .job import Job
 from .task import Task
-from . import backends, worker_configuration, naming, storage
+from . import backends, worker_configuration, naming, storage, kubernetes_backend
 
 
 def run_multiple(function, values):
@@ -55,6 +55,12 @@ class Client(object):
 
     @staticmethod
     def from_args(args):
+        # make sure user isn't trying to call a kubernetes backend with local storage
+        if args.backend == 'kubernetes' and \
+                not storage.is_google_storage_bucket(args.storage_prefix):
+                
+            raise ValueError('Cannot use kubernetes backend with local storage')
+
         backend = backends.backend_from_args(args)
         return Client(
             backend,

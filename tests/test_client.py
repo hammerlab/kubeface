@@ -113,3 +113,12 @@ def test_job_summary(bucket):
 
     c.cleanup()
     testing.assert_equal(len(c.job_summary()), 0)
+
+
+def test_invalid_client():
+    with testing.assert_raises(ValueError):
+        c = client_from_commandline_args([
+            "--poll-seconds", "1.1",
+            "--backend", "kubernetes",
+            "--storage-prefix", "/tmp",
+        ])
