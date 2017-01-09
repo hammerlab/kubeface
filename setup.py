@@ -36,6 +36,7 @@ setup(
     install_requires=[
         "dill>=0.2.5",
         "six",
+        "numpy",
         "parse",
         "oauth2client==4.0.0",
         "google-api-python-client==1.5.5",

@@ -239,7 +239,7 @@ class Job(object):
                                     speculation_runtime_threshold))
 
                     if speculation_runtime_threshold is not None:
-                        elegible_tasks = self.elegible_tasks_by_runtime(
+                        elegible_tasks = self.tasks_elegible_for_speculation(
                             speculation_runtime_threshold)
 
                         if elegible_tasks:
