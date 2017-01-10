@@ -1,5 +1,10 @@
 '''
 Run a task. Used internally, not meant to be called by a user.
+
+This runs on a worker (Kubernetes pod, local node, etc.). Deserializes a serialized task
+and invokes run() on the task (see task.py).
+
+(In the case of kubernetes, it's included in a docker image which contains all of kubeface.)
 '''
 
 import sys
@@ -54,9 +59,9 @@ def run(argv=sys.argv[1:]):
 
     with tempfile.TemporaryFile(
             prefix="kubeface-run-task-result-", suffix=".pkl") as fd:
-        logging.info("Serializing.")
+        logging.info("Serializing result.")
         serialization.dump(result, fd)
-        logging.info("Serialized to %d bytes." % fd.tell())
+        logging.info("Serialized result to %d bytes." % fd.tell())
         fd.seek(0)
         logging.info("Writing: %s" % result_path)
         storage.put(result_path, fd)
