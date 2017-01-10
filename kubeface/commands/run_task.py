@@ -1,10 +1,5 @@
 '''
 Run a task. Used internally, not meant to be called by a user.
-
-This runs on a worker (Kubernetes pod, local node, etc.). Deserializes a serialized task
-and invokes run() on the task (see task.py).
-
-(In the case of kubernetes, it's included in a docker image which contains all of kubeface.)
 '''
 
 import sys

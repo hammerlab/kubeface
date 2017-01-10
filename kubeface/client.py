@@ -1,6 +1,5 @@
 import math
 import logging
-import numpy
 import os
 
 from .broadcast import Broadcast
