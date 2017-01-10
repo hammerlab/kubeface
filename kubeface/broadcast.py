@@ -3,7 +3,6 @@ import logging
 
 class Broadcast(object):
     def __init__(self, storage_prefix, data):
-        # for now this computes the filepath using id() - WIP/proof of concept
         hash_path = '%s/%s' % (storage_prefix, self.compute_filename(data))
         logging.info('Writing broadcast data to %s', hash_path)
         with open(hash_path, 'w') as f:
