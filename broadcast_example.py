@@ -38,8 +38,7 @@ def main(argv):
 
 	logging.info('Using broadcast variable: note size of uploaded task')
 	def my_func_with_broadcast(x):
-		data = big_wrapped.value()
-		return str(x) + data
+		return str(x) + big_wrapped.data
 	results = client.map(my_func_with_broadcast, input_values)
 	for (x, result) in zip(input_values, results):
 		print("%d, %s" % (x, Counter(result)))

@@ -236,4 +236,4 @@ class Client(object):
                 self.cleanup_job(job.job_name)
 
     def broadcast(self, data):
-        return Broadcast(self.storage_prefix, data)
+        return Broadcast(self.storage_prefix, self.cache_key_prefix, data)
