@@ -5,7 +5,11 @@ import os
 from .broadcast import Broadcast
 from .job import Job
 from .task import Task
-from . import backends, worker_configuration, naming, storage, kubernetes_backend
+from . import (
+    backends,
+    worker_configuration,
+    naming,
+    storage)
 
 
 def run_multiple(function, values):
@@ -58,8 +62,9 @@ class Client(object):
     def from_args(args):
         backend = backends.backend_from_args(args)
         if not backend.supports_storage_prefix(args.storage_prefix):
-            raise ValueError('Unsupported backend/storage combination: %s, %s' % (
-                args.backend, args.storage_prefix))
+            raise ValueError(
+                "Backend '%s' does not support storage prefix: %s" % (
+                    args.backend, args.storage_prefix))
         return Client(
             backend,
             max_simultaneous_tasks=args.max_simultaneous_tasks,
@@ -99,6 +104,7 @@ class Client(object):
         self.speculation_max_reruns = speculation_max_reruns
 
         self.submitted_jobs = []
+        self.next_brodcast_num = 1
 
     def next_cache_key(self):
         return "%s-%03d" % (
@@ -235,5 +241,12 @@ class Client(object):
                 logging.info("Cleaning up for job: %s" % job.job_name)
                 self.cleanup_job(job.job_name)
 
-    def broadcast(self, data):
-        return Broadcast(self.storage_prefix, self.cache_key_prefix, data)
+    def broadcast(self, value):
+        file_path = (
+            self.storage_prefix +
+            "/" +
+            naming.make_broadcast_name(
+                cache_key_prefix=self.cache_key_prefix,
+                broadcast_num=self.next_brodcast_num))
+        self.next_brodcast_num += 1
+        return Broadcast(file_path=file_path, value=value)

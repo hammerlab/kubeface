@@ -36,7 +36,8 @@ JOB_STATUS_PAGE = Stringable(
 
 BROADCAST = Stringable(
     "Broadcast",
-    "{cache_key}::{randomness}")
+    "broadcast::{cache_key_prefix}::{broadcast_num:d}-{randomness}")
+
 
 def hash_value(s, characters=8):
     return hashlib.sha1(str(s).encode()).hexdigest()[:characters]
@@ -57,9 +58,10 @@ def make_job_name(cache_key):
         randomness=hash_value(time.time()))
 
 
-def make_broadcast_name(cache_key):
+def make_broadcast_name(cache_key_prefix, broadcast_num):
     return BROADCAST.make_string(
-        cache_key=cache_key,
+        cache_key_prefix=cache_key_prefix,
+        broadcast_num=broadcast_num,
         randomness=hash_value(time.time()))
 
 

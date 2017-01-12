@@ -74,8 +74,3 @@ class LocalProcessDockerBackend(Backend):
         )
         logging.info("Running task '%s': %s" % (task_name, str(command)))
         return subprocess.Popen(command)
-
-    @staticmethod
-    def supports_storage_prefix(storage_prefix):
-        # docker backends can work with any kind of storage
-        return True
