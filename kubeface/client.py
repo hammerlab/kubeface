@@ -2,6 +2,7 @@ import math
 import logging
 import os
 
+from .broadcast import Broadcast
 from .job import Job
 from .task import Task
 from . import backends, worker_configuration, naming, storage, kubernetes_backend
@@ -233,3 +234,6 @@ class Client(object):
             for job in self.submitted_jobs:
                 logging.info("Cleaning up for job: %s" % job.job_name)
                 self.cleanup_job(job.job_name)
+
+    def broadcast(self, data):
+        return Broadcast(self.storage_prefix, self.cache_key_prefix, data)
