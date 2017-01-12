@@ -143,5 +143,5 @@ class KubernetesBackend(Backend):
 
     @staticmethod
     def supports_storage_prefix(storage_prefix):
-        # kubernetes backends can only work with bucket storage
+        # kubernetes backend requires bucket storage
         return is_google_storage_bucket(storage_prefix)

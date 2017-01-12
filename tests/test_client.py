@@ -1,6 +1,6 @@
 import numpy
 import argparse
-import time
+
 from numpy import testing
 
 from kubeface import (
@@ -8,6 +8,7 @@ from kubeface import (
     local_process_backend,
     local_process_docker_backend,
     worker_configuration,
+    serialization,
     common)
 
 from . import util
@@ -117,8 +118,25 @@ def test_job_summary(bucket):
 
 def test_invalid_client():
     with testing.assert_raises(ValueError):
-        c = client_from_commandline_args([
+        client_from_commandline_args([
             "--poll-seconds", "1.1",
             "--backend", "kubernetes",
             "--storage-prefix", "/tmp",
         ])
+
+
+@util.with_local_and_bucket_storage
+def test_broadcast(bucket):
+    c = client_from_commandline_args([
+        "--poll-seconds", "1.1",
+        "--backend", "local-process",
+        "--storage-prefix", bucket,
+    ])
+    data = numpy.arange(10000)**2
+    serialized_data = serialization.dumps(data)
+    testing.assert_equal(serialization.loads(serialized_data), data)
+
+    broadcast = c.broadcast(data)
+    serialized_broadcast = serialization.dumps(broadcast)
+    assert len(serialized_broadcast) < len(serialized_data) / 10
+    testing.assert_equal(serialization.loads(serialized_broadcast).value, data)

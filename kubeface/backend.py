@@ -3,4 +3,4 @@ class Backend(object):
         raise NotImplementedError
 
     def supports_storage_prefix(self, storage_prefix):
-    	raise NotImplementedError
+        return True
