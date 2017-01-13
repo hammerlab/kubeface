@@ -23,7 +23,7 @@ Nomenclature
 
 * **Master:** the Python process the user launches. It uses kubeface to run *jobs*
 * **Worker:** a process running external to the master (probably on a cluster) that executes a *task*
-* **Job:** Each call to client.map(...) creates a *job*
+* **Job:** Each call to `client.map(...)` creates a *job*
 * **Task:** Each invocation of the function given to map is a *task*
 
 Backends
