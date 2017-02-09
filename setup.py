@@ -14,7 +14,7 @@ setup(
     url="https://github.com/hammerlab/kubeface",
     license="Apache License",
     description="Python parallel for loops on kubernetes",
-    long_description=open('README.rst').read(),
+    long_description=open('README.md').read(),
     download_url='https://github.com/hammerlab/kubeface/tarball/%s' % version,
     classifiers=[
         "Development Status :: 1 - Planning",

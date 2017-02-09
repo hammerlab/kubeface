@@ -1,6 +1,6 @@
 import os
-import shlex
 
+from six.moves import shlex_quote as quote
 
 class WorkerConfiguration(object):
     @staticmethod
@@ -70,11 +70,11 @@ class WorkerConfiguration(object):
 
     def command(self, task_input, task_output, extra_task_args=[]):
         def quote_and_join(arguments):
-            return " ".join([shlex.quote(arg) for arg in arguments])
+            return " ".join([quote(arg) for arg in arguments])
 
         pieces = []
-        run_pip = shlex.quote(os.path.join(self.path_prefix, 'pip'))
-        run_task = shlex.quote(
+        run_pip = quote(os.path.join(self.path_prefix, 'pip'))
+        run_task = quote(
             os.path.join(self.path_prefix, '_kubeface-run-task'))
         kubeface_install_command = self.kubeface_install_command.format(
             pip=run_pip)
