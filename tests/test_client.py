@@ -38,7 +38,7 @@ def test_local_process_backend(bucket):
         backend,
         poll_seconds=1.0,
         max_simultaneous_tasks=3,
-        storage_prefix=bucket)
+        storage=bucket)
     exercise_client(c)
 
 
@@ -52,17 +52,17 @@ def test_local_process_docker_backend(bucket):
         backend,
         poll_seconds=1.0,
         max_simultaneous_tasks=1,
-        storage_prefix=bucket)
+        storage=bucket)
     exercise_client(c, high=3)
 
 
 @util.with_local_and_bucket_storage
 def test_worker_exception_delayed(bucket):
     c = client_from_commandline_args([
-        "--poll-seconds", "1.1",
-        "--backend", "local-process",
-        "--storage-prefix", bucket,
-        "--wait-to-raise-task-exception",
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
+        "--kubeface-wait-to-raise-task-exception",
     ])
     mapper = c.map(lambda x: 2 / (x - 2), range(10))
     testing.assert_equal(next(mapper), -1)
@@ -80,9 +80,9 @@ def test_worker_exception_delayed(bucket):
 @util.with_local_and_bucket_storage
 def test_worker_exception(bucket):
     c = client_from_commandline_args([
-        "--poll-seconds", "1.1",
-        "--backend", "local-process",
-        "--storage-prefix", bucket,
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
     ])
     mapper = c.map(lambda x: 2 / (x - 2), range(10))
     testing.assert_raises(ZeroDivisionError, next, mapper)
@@ -91,9 +91,9 @@ def test_worker_exception(bucket):
 @util.with_local_and_bucket_storage
 def test_job_summary(bucket):
     c = client_from_commandline_args([
-        "--poll-seconds", "1.1",
-        "--backend", "local-process",
-        "--storage-prefix", bucket,
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
     ])
 
     exercise_client(c, high=5)
@@ -119,18 +119,18 @@ def test_job_summary(bucket):
 def test_invalid_client():
     with testing.assert_raises(ValueError):
         client_from_commandline_args([
-            "--poll-seconds", "1.1",
-            "--backend", "kubernetes",
-            "--storage-prefix", "/tmp",
+            "--kubeface-poll-seconds", "1.1",
+            "--kubeface-backend", "kubernetes",
+            "--kubeface-storage", "/tmp",
         ])
 
 
 @util.with_local_and_bucket_storage
 def test_broadcast(bucket):
     c = client_from_commandline_args([
-        "--poll-seconds", "1.1",
-        "--backend", "local-process",
-        "--storage-prefix", bucket,
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
     ])
     data = numpy.arange(10000)**2
     serialized_data = serialization.dumps(data)

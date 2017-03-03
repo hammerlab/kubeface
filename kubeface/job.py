@@ -18,7 +18,7 @@ class Job(object):
             backend,
             tasks_iter,
             max_simultaneous_tasks,
-            storage_prefix,
+            storage,
             cache_key,
             num_tasks=None,
             wait_to_raise_task_exception=False,
@@ -29,7 +29,7 @@ class Job(object):
         self.backend = backend
         self.tasks_iter = tasks_iter
         self.max_simultaneous_tasks = max_simultaneous_tasks
-        self.storage_prefix = storage_prefix
+        self.storage = storage
         self.cache_key = cache_key
         self.num_tasks = num_tasks
         self.wait_to_raise_task_exception = wait_to_raise_task_exception
@@ -43,7 +43,7 @@ class Job(object):
         self.reused_tasks = set()
         self.completed_tasks = {}
         self.running_tasks = set()
-        self.status_writer = DefaultStatusWriter(storage_prefix, self.job_name)
+        self.status_writer = DefaultStatusWriter(storage, self.job_name)
 
         self.status_writer.print_info()
 
@@ -65,7 +65,7 @@ class Job(object):
         return result
 
     def storage_path(self, filename):
-        return self.storage_prefix + "/" + filename
+        return self.storage + "/" + filename
 
     def submit_task(self, task_name):
         queue_time = int(time.time())

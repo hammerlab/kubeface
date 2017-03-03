@@ -6,18 +6,18 @@ from . import naming, storage
 
 
 class DefaultStatusWriter(object):
-    def __init__(self, storage_prefix, job_name):
-        self.storage_prefix = storage_prefix
+    def __init__(self, storage_path, job_name):
+        self.storage_path = storage_path
         self.job_name = job_name
         self.json_path = (
-            storage_prefix +
+            storage_path +
             "/" +
             naming.JOB_STATUS_PAGE.make_string(
                 job_name=job_name,
                 format="json",
                 status="active"))
         self.html_path = (
-            storage_prefix +
+            storage_path +
             "/" +
             naming.JOB_STATUS_PAGE.make_string(
                 job_name=job_name,

@@ -13,7 +13,7 @@ BACKENDS = collections.OrderedDict([
 
 def add_args(parser):
     parser.add_argument(
-        "--backend",
+        "--kubeface-backend",
         choices=tuple(BACKENDS),
         default=tuple(BACKENDS)[0])
 
@@ -23,4 +23,4 @@ def add_args(parser):
 
 
 def backend_from_args(args):
-    return BACKENDS[args.backend].from_args(args)
+    return BACKENDS[args.kubeface_backend].from_args(args)

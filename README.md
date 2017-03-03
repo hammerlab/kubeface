@@ -76,7 +76,7 @@ To run the tests:
     # If you set it in the tests will run against a real google storage bucket.
     # See https://developers.google.com/identity/protocols/application-default-credentials#howtheywork;
     # you need to get Application Default Credentials before writing to your bucket.
-    KUBEFACE_BUCKET=kubeface-test  # tests will write to gs://kubeface-test.
+    KUBEFACE_STORAGE=gs://kubeface-test  # tests will write to gs://kubeface-test.
 
     # Run tests:
     nosetests
@@ -109,12 +109,11 @@ Now launch a command:
     kubeface-run \
         --expression 'value**2' \
         --generator-expression 'range(10)' \
-        --max-simultaneous-tasks 10 \
-        --backend kubernetes \
-        --storage-prefix "gs://$KUBEFACE_BUCKET" \
-        --worker-image continuumio/anaconda3 \
-        --kubernetes-task-resources-cpu 1 \
-        --kubernetes-task-resources-memory-mb 500 \
+        --kubeface-max-simultaneous-tasks 10 \
+        --kubeface-backend kubernetes \
+        --kubeface-worker-image continuumio/anaconda3 \
+        --kubeface-kubernetes-task-resources-cpu 1 \
+        --kubeface-kubernetes-task-resources-memory-mb 500 \
         --verbose \
         --out-csv /tmp/result.csv
 
