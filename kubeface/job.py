@@ -253,6 +253,7 @@ class Job(object):
                             logging.info(
                                 "Capacity for re-running up to %d tasks. "
                                 "Will speculatively re-run %d tasks." % (
+                                    capacity,
                                     len(to_speculate)))
                             for task_name in to_speculate:
                                 self.submit_task(task_name)
