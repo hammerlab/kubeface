@@ -107,7 +107,8 @@ class KubernetesBackend(Backend):
             "kind": "Pod",
             "apiVersion": "v1",
             "metadata": {
-                "name": sanitized_task_name,
+                "name": "%s-%s" % (
+                    sanitized_task_name, naming.hash_value(task_output)),
                 "labels": {
                     "kubeface_job": sanitized_cache_key,
                 },
