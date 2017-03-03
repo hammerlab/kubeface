@@ -28,7 +28,7 @@ class WorkerConfiguration(object):
 
     @staticmethod
     def from_args(args):
-        arg_prefix = "worker_"
+        arg_prefix = "kubeface_worker_"
         return WorkerConfiguration(
             **dict(
                 (key[len(arg_prefix):], value)
