@@ -21,37 +21,37 @@ class Client(object):
     def add_args(parser):
         group = parser.add_argument_group("kubeface client")
         group.add_argument(
-            "--max-simultaneous-tasks",
+            "--kubeface-max-simultaneous-tasks",
             type=int,
             default=10)
         group.add_argument(
-            "--poll-seconds",
+            "--kubeface-poll-seconds",
             type=float,
             default=30.0)
         group.add_argument(
-            "--storage-prefix",
-            default=os.environ.get("KUBEFACE_BUCKET", "gs://kubeface"),
+            "--kubeface-storage",
+            default=os.environ.get("KUBEFACE_STORAGE", "gs://kubeface"),
             help="Default: %(default)s")
         group.add_argument(
-            "--cache-key-prefix")
+            "--kubeface-cache-key-prefix")
         group.add_argument(
-            "--never-cleanup",
+            "--kubeface-never-cleanup",
             action="store_true",
             default=False)
         group.add_argument(
-            "--wait-to-raise-task-exception",
+            "--kubeface-wait-to-raise-task-exception",
             action="store_true",
             default=False)
         group.add_argument(
-            "--speculation-percent",
+            "--kubeface-speculation-percent",
             type=float,
             default=20)
         group.add_argument(
-            "--speculation-runtime-percentile",
+            "--kubeface-speculation-runtime-percentile",
             type=float,
             default=99)
         group.add_argument(
-            "--speculation-max-reruns",
+            "--kubeface-speculation-max-reruns",
             type=int,
             default=1)
 
@@ -61,28 +61,30 @@ class Client(object):
     @staticmethod
     def from_args(args):
         backend = backends.backend_from_args(args)
-        if not backend.supports_storage_prefix(args.storage_prefix):
+        if not backend.supports_storage(args.kubeface_storage):
             raise ValueError(
-                "Backend '%s' does not support storage prefix: %s" % (
-                    args.backend, args.storage_prefix))
+                "Backend '%s' does not support storage: %s" % (
+                    args.kubeface_backend, args.kubeface_storage))
         return Client(
             backend,
-            max_simultaneous_tasks=args.max_simultaneous_tasks,
-            poll_seconds=args.poll_seconds,
-            storage_prefix=args.storage_prefix,
-            cache_key_prefix=args.cache_key_prefix,
-            never_cleanup=args.never_cleanup,
-            wait_to_raise_task_exception=args.wait_to_raise_task_exception,
-            speculation_percent=args.speculation_percent,
-            speculation_runtime_percentile=args.speculation_runtime_percentile,
-            speculation_max_reruns=args.speculation_max_reruns)
+            max_simultaneous_tasks=args.kubeface_max_simultaneous_tasks,
+            poll_seconds=args.kubeface_poll_seconds,
+            storage=args.kubeface_storage,
+            cache_key_prefix=args.kubeface_cache_key_prefix,
+            never_cleanup=args.kubeface_never_cleanup,
+            wait_to_raise_task_exception=(
+                args.kubeface_wait_to_raise_task_exception),
+            speculation_percent=args.kubeface_speculation_percent,
+            speculation_runtime_percentile=(
+                args.kubeface_speculation_runtime_percentile),
+            speculation_max_reruns=args.kubeface_speculation_max_reruns)
 
     def __init__(
             self,
             backend,
             max_simultaneous_tasks=10,
             poll_seconds=30.0,
-            storage_prefix="gs://kubeface",
+            storage="gs://kubeface",
             cache_key_prefix=None,
             never_cleanup=False,
             wait_to_raise_task_exception=False,
@@ -93,7 +95,7 @@ class Client(object):
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
         self.poll_seconds = poll_seconds
-        self.storage_prefix = storage_prefix
+        self.storage = storage
         self.cache_key_prefix = (
             cache_key_prefix if cache_key_prefix
             else naming.make_cache_key_prefix())
@@ -123,7 +125,7 @@ class Client(object):
             num_tasks=num_tasks,
             cache_key=cache_key if cache_key else self.next_cache_key(),
             max_simultaneous_tasks=self.max_simultaneous_tasks,
-            storage_prefix=self.storage_prefix,
+            storage=self.storage,
             wait_to_raise_task_exception=self.wait_to_raise_task_exception,
             speculation_percent=self.speculation_percent,
             speculation_runtime_percentile=self.speculation_runtime_percentile,
@@ -182,7 +184,7 @@ class Client(object):
         status_prefixes = naming.status_prefixes(job_names=job_names)
         for prefix in status_prefixes:
             status_pages.update(storage.list_contents(
-                self.storage_prefix + "/" + prefix))
+                self.storage + "/" + prefix))
         for source_object in status_pages:
             parsed = naming.JOB_STATUS_PAGE.make_tuple(source_object)
             if parsed.status == 'active':
@@ -193,26 +195,26 @@ class Client(object):
                     source_object,
                     dest_object))
                 storage.move(
-                    self.storage_prefix + "/" + source_object,
-                    self.storage_prefix + "/" + dest_object)
+                    self.storage + "/" + source_object,
+                    self.storage + "/" + dest_object)
             else:
                 logging.info("Already marked done: %s" % source_object)
 
     def cleanup_job(self, job_name):
         cache_key = naming.JOB.make_tuple(job_name).cache_key
         results = storage.list_contents(
-            self.storage_prefix +
+            self.storage +
             "/" +
             naming.task_result_prefix(cache_key))
         inputs = storage.list_contents(
-            self.storage_prefix +
+            self.storage +
             "/" +
             naming.task_input_prefix(cache_key))
         logging.info("Cleaning up cache key '%s': %d results, %d inputs." % (
             cache_key, len(results), len(inputs)))
 
         for item in results + inputs:
-            storage.delete(self.storage_prefix + "/" + item)
+            storage.delete(self.storage + "/" + item)
 
         self.mark_jobs_done(job_names=[job_name])
 
@@ -225,7 +227,7 @@ class Client(object):
         for prefix in prefixes:
             all_objects.extend(
                 storage.list_contents(
-                    self.storage_prefix + "/" + prefix))
+                    self.storage + "/" + prefix))
         logging.debug("Listed %d status pages from prefixes: %s" % (
             len(all_objects), " ".join(prefixes)))
         return [
@@ -243,7 +245,7 @@ class Client(object):
 
     def broadcast(self, value):
         file_path = (
-            self.storage_prefix +
+            self.storage +
             "/" +
             naming.make_broadcast_name(
                 cache_key_prefix=self.cache_key_prefix,

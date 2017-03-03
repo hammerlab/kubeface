@@ -1,5 +1,4 @@
 import math
-import numpy
 import argparse
 import subprocess
 from numpy import testing
@@ -22,7 +21,7 @@ def client_from_commandline_args(argv):
 
 def run_job_command(bucket, argv):
     result = subprocess.check_output(
-        ["kubeface-job", "--storage-prefix", bucket] + argv).decode()
+        ["kubeface-job", "--kubeface-storage", bucket] + argv).decode()
     print(result)
     return result
 
@@ -36,9 +35,9 @@ def find_line_with(needle, haystack, nth=0):
 @util.with_local_storage
 def test_job_command(bucket):
     c = client_from_commandline_args([
-        "--poll-seconds", "1.1",
-        "--backend", "local-process",
-        "--storage-prefix", bucket,
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
     ])
 
     mapper = c.map(math.exp, range(10), cache_key='FOOBARBAZ')

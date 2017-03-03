@@ -2,27 +2,28 @@ import os
 
 from six.moves import shlex_quote as quote
 
+
 class WorkerConfiguration(object):
     @staticmethod
     def add_args(parser):
         parser.add_argument(
-            "--worker-image",
+            "--kubeface-worker-image",
             default=DEFAULT.image)
         parser.add_argument(
-            "--worker-path-prefix",
+            "--kubeface-worker-path-prefix",
             default=DEFAULT.path_prefix)
         parser.add_argument(
-            "--worker-pip",
+            "--kubeface-worker-pip",
             default=DEFAULT.pip)
         parser.add_argument(
-            "--worker-pip-packages",
+            "--kubeface-worker-pip-packages",
             default=DEFAULT.pip_packages)
         parser.add_argument(
-            "--worker-kubeface-install-policy",
+            "--kubeface-worker-kubeface-install-policy",
             choices=('if-not-present', 'always', 'never'),
             default=DEFAULT.kubeface_install_policy)
         parser.add_argument(
-            "--worker-kubeface-install-command",
+            "--kubeface-worker-kubeface-install-command",
             default=DEFAULT.kubeface_install_command)
 
     @staticmethod

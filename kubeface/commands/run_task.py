@@ -7,6 +7,9 @@ import argparse
 import logging
 import tempfile
 import math
+import signal
+import traceback
+import os
 
 from .. import storage, serialization
 from ..common import configure_logging
@@ -37,6 +40,11 @@ parser.add_argument(
 
 def run(argv=sys.argv[1:]):
     args = parser.parse_args(argv)
+
+    # On sigusr1 print stack trace
+    print("To show stack trace, run:\nkill -s USR1 %d" % os.getpid())
+    signal.signal(signal.SIGUSR1, lambda sig, frame: traceback.print_stack())
+
     configure_logging(args)
 
     logging.info("Reading: %s" % args.input_path)

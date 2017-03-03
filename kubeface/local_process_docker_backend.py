@@ -18,14 +18,14 @@ class LocalProcessDockerBackend(Backend):
     @staticmethod
     def add_args(parser):
         parser.add_argument(
-            "--local-process-docker-command",
+            "--kubeface-local-process-docker-command",
             default="docker")
 
     @staticmethod
     def from_args(args):
         return LocalProcessDockerBackend(
             worker_configuration=WorkerConfiguration.from_args(args),
-            docker_command=args.local_process_docker_command)
+            docker_command=args.kubeface_local_process_docker_command)
 
     def __init__(
             self,

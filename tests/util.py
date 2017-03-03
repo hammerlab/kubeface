@@ -24,7 +24,7 @@ def check_empty(bucket_url):
 
 
 def with_bucket_storage(function):
-    bucket = os.environ.get("KUBEFACE_BUCKET")
+    bucket = os.environ.get("KUBEFACE_STORAGE")
     if not bucket:
         logging.fatal("No bucket defined")
 
@@ -46,10 +46,10 @@ def with_local_storage(function):
 
 
 def with_local_and_bucket_storage(function):
-    bucket = os.environ.get("KUBEFACE_BUCKET")
+    bucket = os.environ.get("KUBEFACE_STORAGE")
     if not bucket:
         logging.warning(
-            "Set KUBEFACE_BUCKET to run test: %s" % str(function))
+            "Set KUBEFACE_STORAGE to run test: %s" % str(function))
         return with_local_storage(function)
 
     def test_function():

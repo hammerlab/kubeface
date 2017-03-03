@@ -17,33 +17,33 @@ class KubernetesBackend(Backend):
     def add_args(parser):
         default = KubernetesBackend(worker_configuration=None)
         parser.add_argument(
-            "--kubernetes-cluster",
+            "--kubeface-kubernetes-cluster",
             default=default.cluster,
             help="Cluster. Default: %(default)s")
         parser.add_argument(
-            "--kubernetes-task-resources-cpu",
+            "--kubeface-kubernetes-task-resources-cpu",
             default=default.task_resources_cpu,
             type=int,
             help="CPUs per task. Default: %(default)s")
         parser.add_argument(
-            "--kubernetes-task-resources-memory-mb",
+            "--kubeface-kubernetes-task-resources-memory-mb",
             default=default.task_resources_memory_mb,
             type=float,
             help="Memory (mb) per task. Default: %(default)s")
         parser.add_argument(
-            "--kubernetes-retries",
+            "--kubeface-kubernetes-retries",
             default=default.retries,
             type=int,
             help="Max retries for kubernetes commands. Default: %(default)s")
         parser.add_argument(
-            "--kubernetes-image-pull-policy",
+            "--kubeface-kubernetes-image-pull-policy",
             default=default.image_pull_policy,
             choices=("Always", "IfNotPresent", "Never"),
             help="Image pull policy. Default: %(default)s")
 
     @staticmethod
     def from_args(args):
-        arg_prefix = "kubernetes_"
+        arg_prefix = "kubeface_kubernetes_"
         return KubernetesBackend(
             worker_configuration=WorkerConfiguration.from_args(args),
             **dict(
@@ -142,6 +142,6 @@ class KubernetesBackend(Backend):
         return result
 
     @staticmethod
-    def supports_storage_prefix(storage_prefix):
+    def supports_storage(path):
         # kubernetes backend requires bucket storage
-        return is_google_storage_bucket(storage_prefix)
+        return is_google_storage_bucket(path)
