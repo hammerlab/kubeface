@@ -152,7 +152,7 @@ class Job(object):
             task_name
             for task_name in self.running_tasks
             if (
-                self.task_queue_times[task_name][-1] >
+                time.time() - self.task_queue_times[task_name][-1] >
                 speculation_runtime_threshold)
         ]
         elegible_tasks = [
@@ -217,7 +217,8 @@ class Job(object):
                             len(self.submitted_tasks))
                         if percent_tasks_running < self.speculation_percent:
                             elapsed_times = [
-                                int(t["parsed_result_name"].result_time)
+                                int(t["parsed_result_name"].result_time) -
+                                int(t["parsed_result_name"].queue_time)
                                 for t in self.completed_tasks.values()
                             ]
                             speculation_runtime_threshold = percentile(
