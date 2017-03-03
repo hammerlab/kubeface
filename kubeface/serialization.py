@@ -5,14 +5,18 @@ import dill.detect
 
 PICKLE_PROTOCOL = 2
 
+CHECK_SERIALIZATION = False
+
 
 def check(obj):
+    if not CHECK_SERIALIZATION:
+        return
     try:
         dill.loads(dill.dumps(obj))
     except Exception as e:
         logging.error(
-                "Couldn't serialize: %s\n'%s'\nBad objects:\n%s" % (
-                    str(obj), str(e), dill.detect.badobjects(obj, depth=2)))
+            "Couldn't serialize: %s\n'%s'\nBad objects:\n%s" % (
+                str(obj), str(e), dill.detect.badobjects(obj, depth=2)))
         raise
 
 
