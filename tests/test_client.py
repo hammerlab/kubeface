@@ -126,7 +126,7 @@ def test_invalid_client():
 
 
 @util.with_local_and_bucket_storage
-def test_broadcast(bucket):
+def test_remote_object(bucket):
     c = client_from_commandline_args([
         "--kubeface-poll-seconds", "1.1",
         "--kubeface-backend", "local-process",
@@ -136,7 +136,49 @@ def test_broadcast(bucket):
     serialized_data = serialization.dumps(data)
     testing.assert_equal(serialization.loads(serialized_data), data)
 
-    broadcast = c.broadcast(data)
-    serialized_broadcast = serialization.dumps(broadcast)
-    assert len(serialized_broadcast) < len(serialized_data) / 10
-    testing.assert_equal(serialization.loads(serialized_broadcast).value, data)
+    remote = c.remote_object(data)
+    serialized_remote = serialization.dumps(remote)
+    assert len(serialized_remote) < len(serialized_data) / 10
+    testing.assert_equal(serialization.loads(serialized_remote).value, data)
+
+
+@util.with_local_and_bucket_storage
+def test_pickle_client(bucket):
+    c = client_from_commandline_args([
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
+    ])
+    testing.assert_equal(
+        c.cache_key_prefix,
+        serialization.loads(serialization.dumps(c)).cache_key_prefix)
+
+
+@util.with_local_and_bucket_storage
+def test_return_remote_object(bucket):
+    c = client_from_commandline_args([
+        "--kubeface-poll-seconds", "1.1",
+        "--kubeface-backend", "local-process",
+        "--kubeface-storage", bucket,
+    ])
+    mapper = c.map(lambda x: c.remote_object(x**2), range(10))
+    obj = next(mapper)
+    testing.assert_equal(obj.written, True)
+    testing.assert_equal(obj.loaded, False)
+    testing.assert_equal(obj.value, 0)
+    testing.assert_equal(obj.loaded, True)
+    testing.assert_equal(obj.value, 0)
+
+    obj = next(mapper)
+    testing.assert_equal(obj.written, True)
+    testing.assert_equal(obj.loaded, False)
+    testing.assert_equal(obj.value, 1)
+    testing.assert_equal(obj.loaded, True)
+    testing.assert_equal(obj.value, 1)
+
+    obj = next(mapper)
+    testing.assert_equal(obj.written, True)
+    testing.assert_equal(obj.loaded, False)
+    testing.assert_equal(obj.value, 4)
+    testing.assert_equal(obj.loaded, True)
+    testing.assert_equal(obj.value, 4)

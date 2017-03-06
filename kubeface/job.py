@@ -6,7 +6,7 @@ import collections
 from numpy import percentile, mean
 
 from .serialization import dump
-from . import storage, naming
+from . import storage, naming, context
 from .status_writer import DefaultStatusWriter
 from .common import human_readable_memory_size
 from .result import Result
@@ -37,7 +37,8 @@ class Job(object):
         self.speculation_runtime_percentile = speculation_runtime_percentile
         self.speculation_max_reruns = speculation_max_reruns
 
-        self.job_name = naming.make_job_name(self.cache_key)
+        self.job_name = naming.make_job_name(
+            self.cache_key, node_id=context.node_id())
         self.task_queue_times = collections.defaultdict(list)
         self.submitted_tasks = []
         self.reused_tasks = set()
@@ -225,7 +226,7 @@ class Job(object):
                                 elapsed_times,
                                 self.speculation_runtime_percentile)
                             logging.info(
-                                "Enabling speculation: %0.2ff%% of tasks "
+                                "Enabling speculation: %0.2f%% of tasks "
                                 "running. "
                                 "Task queue times (sec): "
                                 "min=%0.1f mean=%0.1f max=%0.1f. Queue time "

@@ -4,7 +4,8 @@ from kubeface import naming
 
 
 def test_basics():
-    job = naming.JOB.make_string(cache_key="foo", randomness="123")
+    job = naming.JOB.make_string(
+        cache_key="foo", node_id="node-master", randomness="123")
     print(job)
     testing.assert_equal(
         naming.JOB.make_string(naming.JOB.make_tuple(job)),
