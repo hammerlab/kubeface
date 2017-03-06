@@ -2,13 +2,14 @@ import math
 import logging
 import os
 
-from .broadcast import Broadcast
+from .remote_object import RemoteObject
 from .job import Job
 from .task import Task
 from . import (
     backends,
     worker_configuration,
     naming,
+    context,
     storage)
 
 
@@ -53,7 +54,7 @@ class Client(object):
         group.add_argument(
             "--kubeface-speculation-max-reruns",
             type=int,
-            default=1)
+            default=3)
 
         worker_configuration.WorkerConfiguration.add_args(group)
         backends.add_args(group)
@@ -106,7 +107,13 @@ class Client(object):
         self.speculation_max_reruns = speculation_max_reruns
 
         self.submitted_jobs = []
-        self.next_brodcast_num = 1
+        self.next_object_num = 1
+
+    def __getstate__(self):
+        # Don't serialize jobs
+        d = dict(self.__dict__)
+        d['submitted_jobs'] = []
+        return d
 
     def next_cache_key(self):
         return "%s-%03d" % (
@@ -243,12 +250,13 @@ class Client(object):
                 logging.info("Cleaning up for job: %s" % job.job_name)
                 self.cleanup_job(job.job_name)
 
-    def broadcast(self, value):
+    def remote_object(self, value):
         file_path = (
             self.storage +
             "/" +
-            naming.make_broadcast_name(
+            naming.make_remote_object_name(
                 cache_key_prefix=self.cache_key_prefix,
-                broadcast_num=self.next_brodcast_num))
-        self.next_brodcast_num += 1
-        return Broadcast(file_path=file_path, value=value)
+                node_id=context.node_id(),
+                object_num=self.next_object_num))
+        self.next_object_num += 1
+        return RemoteObject(file_path=file_path, value=value)

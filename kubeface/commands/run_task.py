@@ -13,6 +13,7 @@ import os
 
 from .. import storage, serialization
 from ..common import configure_logging
+from ..context import RUNTIME_CONTEXT
 
 parser = argparse.ArgumentParser(description=__doc__)
 
@@ -46,6 +47,10 @@ def run(argv=sys.argv[1:]):
     signal.signal(signal.SIGUSR1, lambda sig, frame: traceback.print_stack())
 
     configure_logging(args)
+
+    RUNTIME_CONTEXT["node_type"] = "task"
+    RUNTIME_CONTEXT["task_input_path"] = args.input_path
+    RUNTIME_CONTEXT["task_result_path"] = args.result_path
 
     logging.info("Reading: %s" % args.input_path)
     input_handle = storage.get(args.input_path)

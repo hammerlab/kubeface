@@ -8,7 +8,7 @@ from .stringable import Stringable
 
 JOB = Stringable(
     "Job",
-    "{cache_key}::{randomness}")
+    "{cache_key}::{node_id}::{randomness}")
 
 TASK = Stringable(
     "Task",
@@ -34,9 +34,9 @@ JOB_STATUS_PAGE = Stringable(
         'status': ['active', 'done'],
     })
 
-BROADCAST = Stringable(
-    "Broadcast",
-    "broadcast::{cache_key_prefix}::{broadcast_num:d}-{randomness}")
+REMOTE_OBJECT = Stringable(
+    "RemoteObject",
+    "object::{cache_key_prefix}::{node_id}::{object_num:d}-{randomness}")
 
 
 def hash_value(s, characters=8):
@@ -52,16 +52,18 @@ def make_cache_key_prefix():
     return cache_key_prefix
 
 
-def make_job_name(cache_key):
+def make_job_name(cache_key, node_id):
     return JOB.make_string(
         cache_key=cache_key,
+        node_id=node_id,
         randomness=hash_value(time.time()))
 
 
-def make_broadcast_name(cache_key_prefix, broadcast_num):
-    return BROADCAST.make_string(
+def make_remote_object_name(cache_key_prefix, node_id, object_num):
+    return REMOTE_OBJECT.make_string(
         cache_key_prefix=cache_key_prefix,
-        broadcast_num=broadcast_num,
+        node_id=node_id,
+        object_num=object_num,
         randomness=hash_value(time.time()))
 
 
