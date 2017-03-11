@@ -7,9 +7,6 @@ from googleapiclient import http
 
 from oauth2client.client import GoogleCredentials
 
-from googleapiclient.errors import HttpError
-
-
 # Some of this is copied from:
 # https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/storage/api/crud_object.py
 # and:
@@ -46,10 +43,10 @@ def robustify(function):
         while True:
             try:
                 return function(*args, **kwargs)
-            except (HttpError, IOError, OSError) as e:
+            except Exception as e:
                 error_num += 1
                 logging.warning(
-                    "Google API error calling %s: '%s'. "
+                    "Exception calling %s: '%s'. "
                     "This call has failed %d times. Will retry up to "
                     "%d times." % (
                         str(function),

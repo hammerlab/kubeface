@@ -83,9 +83,22 @@ def test_worker_exception(bucket):
         "--kubeface-poll-seconds", "1.1",
         "--kubeface-backend", "local-process",
         "--kubeface-storage", bucket,
+        "--kubeface-cache-key-prefix", "foo",
     ])
     mapper = c.map(lambda x: 2 / (x - 2), range(10))
     testing.assert_raises(ZeroDivisionError, next, mapper)
+
+    # TODO: in the future we may want reruns to not re-use excpetions.
+    # Here is a test for that functionality, which is currently not
+    # implemented.
+    # c = client_from_commandline_args([
+    #     "--kubeface-poll-seconds", "1.1",
+    #     "--kubeface-backend", "local-process",
+    #     "--kubeface-storage", bucket,
+    #     "--kubeface-cache-key-prefix", "foo",
+    # ])
+    # results = list(c.map(lambda x: 2 / (x - 200), range(10)))
+    # print(results)  # should not raise
 
 
 @util.with_local_and_bucket_storage
