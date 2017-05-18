@@ -18,8 +18,19 @@ def run_multiple(function, values):
 
 
 class Client(object):
+    """
+    User interface to Kubeface.
+    """
+
     @staticmethod
     def add_args(parser):
+        """
+        Add commandline arguments to argument parser.
+        
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+        """
         group = parser.add_argument_group("kubeface client")
         group.add_argument(
             "--kubeface-max-simultaneous-tasks",
@@ -61,6 +72,18 @@ class Client(object):
 
     @staticmethod
     def from_args(args):
+        """
+        Instantiate a Client from commandline args.
+        
+        Parameters
+        ----------
+        args : argparse.Namespace
+
+        Returns
+        -------
+        Client
+
+        """
         backend = backends.backend_from_args(args)
         if not backend.supports_storage(args.kubeface_storage):
             raise ValueError(
@@ -92,6 +115,47 @@ class Client(object):
             speculation_percent=0,
             speculation_runtime_percentile=99,
             speculation_max_reruns=1):
+        """
+        Parameters
+        ----------
+        backend : kubeface.Backend
+        
+        max_simultaneous_tasks : int
+            Maximum number of tasks to submit at once.
+            
+        poll_seconds : float
+            How often to poll for task results
+        
+        storage : str
+            Bucket or (for local file process backend) local filesystem path to
+            write task inputs and outputs.
+        
+        cache_key_prefix : str
+            If you set this to the same value in multiple clients, they will
+            reuse each other's results. Advanced use only.
+        
+        never_cleanup : boolean
+            Do not cleanup after successful tasks. 
+            
+        wait_to_raise_task_exception : boolean
+            If True, all tasks are run before any failing task's exception is
+            raised. If False, then the exception is raised as soon as it is
+            received.
+        
+        speculation_percent : float
+            No speculation occurs until all tasks have been submitted and at
+            least 100 - speculation_percent tasks have completed. So if you set
+            this to 20 then the last 20% of tasks will be considered for
+            speculatively rerunning.
+        
+        speculation_runtime_percentile : float
+            A task will be rerun when its queue time exceeds
+            speculation_runtime_percentile of the queue times of the tasks that
+            completed successfully without speculation.
+        
+        speculation_max_reruns : int
+            Tasks can be rerun up to speculation_max_reruns times.
+        """
 
         self.backend = backend
         self.max_simultaneous_tasks = max_simultaneous_tasks
@@ -121,6 +185,26 @@ class Client(object):
             len(self.submitted_jobs))
 
     def submit(self, tasks, num_tasks=None, cache_key=None):
+        """
+        Run a Job.
+        
+        Parameters
+        ----------
+        tasks : iterable of kubeface.Task
+        
+        num_tasks : int
+            If tasks has no len(...), for example in the case of a generator,
+            if you specify num_tasks then your progress output will use that
+            number of tasks.
+        
+        cache_key : str
+            Advanced use only for reusing pre-existing results.
+
+        Returns
+        -------
+        kubeface.Job
+
+        """
         if num_tasks is None:
             try:
                 num_tasks = len(tasks)
@@ -145,9 +229,36 @@ class Client(object):
             function,
             iterable,
             items_per_task=1,
-            batched=False,
             num_items=None,
             cache_key=None):
+        """
+        Parallel map. This is the primary user-facing API.
+        
+        Parameters
+        ----------
+        function : callable
+            Python function to run over each item
+        
+        iterable : iterable of object
+            items to pass to function
+        
+        items_per_task : int
+            If items_per_task is 1 then each item to map over gets its own task.
+            If it's 10 then the first 10 items are one task, the next 10 are
+            another, etc.
+        
+        num_items : int
+            If the iterable provided has no len(...) then setting num_items
+            will give better progress output. Not required in any case though.
+        
+        cache_key : str
+            Advanced use only for reusing pre-existing results.
+
+        Returns
+        -------
+        generator of task results, in order
+
+        """
         def grouped():
             iterator = iter(iterable)
             while True:
@@ -170,11 +281,8 @@ class Client(object):
             except TypeError:
                 pass
 
-        if batched:
-            tasks = (Task(function, [values]) for values in grouped())
-        else:
-            tasks = (
-                Task(run_multiple, (function, values)) for values in grouped())
+        tasks = (
+            Task(run_multiple, (function, values)) for values in grouped())
         job = self.submit(tasks, num_tasks=num_tasks, cache_key=cache_key)
         try:
             job.wait(poll_seconds=self.poll_seconds)
