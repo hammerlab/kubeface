@@ -1,4 +1,5 @@
 kubeface
+[![Build Status](https://travis-ci.org/hammerlab/kubeface.svg?branch=master)](https://travis-ci.org/hammerlab/kubeface)
 ========
 
 Python library for parallel maps running directly on Kubernetes. Intended for running many expensive tasks (minutes in runtime). Alpha stage. Currently supports only Google Cloud.
