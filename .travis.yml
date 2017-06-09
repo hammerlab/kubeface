@@ -1,0 +1,10 @@
+sudo: required
+language: python
+services:
+  - docker
+python:
+  - "3.6.1"
+install:
+    - pip install -e .    
+script:
+    - nosetests
