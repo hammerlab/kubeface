@@ -1,0 +1,4 @@
+name,command,input_files,output_files
+run1, echo "hi", ,result.txt
+run2, echo "bye", ,result.txt
+

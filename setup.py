@@ -28,7 +28,8 @@ setup(
     entry_points={
         'console_scripts': [
             'kubeface-copy = kubeface.commands.copy:run',
-            'kubeface-run = kubeface.commands.run:run',
+            'kubeface-run2 = kubeface.commands.run_commands:run',
+            'kubeface-run-commands = kubeface.commands.run_commands:run',
             'kubeface-job = kubeface.commands.job:run',
             '_kubeface-run-task = kubeface.commands.run_task:run',
         ]
