@@ -17,7 +17,7 @@ class WorkerConfiguration(object):
             default=DEFAULT.pip)
         parser.add_argument(
             "--kubeface-worker-pip-packages",
-            default=DEFAULT.pip_packages)
+            default=DEFAULT.pip_packages, nargs="+")
         parser.add_argument(
             "--kubeface-worker-kubeface-install-policy",
             choices=('if-not-present', 'always', 'never'),
